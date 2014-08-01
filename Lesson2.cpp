@@ -1,15 +1,8 @@
-/*
- *		This Code Was Created By Jeff Molofee 2000
- *		A HUGE Thanks To Fredric Echols For Cleaning Up
- *		And Optimizing The Base Code, Making It More Flexible!
- *		If You've Found This Code Useful, Please Let Me Know.
- *		Visit My Site At nehe.gamedev.net
- */
-
 #include <windows.h>		// Header File For Windows
 #include <gl\gl.h>			// Header File For The OpenGL32 Library
 #include <gl\glu.h>			// Header File For The GLu32 Library
 #include <gl\glaux.h>		// Header File For The Glaux Library
+#include <gl\glut.h>
 #include "NuiApi.h"
 #include "opencv2/opencv.hpp"
 #include "msKinect.h"
@@ -26,14 +19,20 @@ bool	keys[256];			// Array Used For The Keyboard Routine
 bool	active=TRUE;		// Window Active Flag Set To TRUE By Default
 bool	fullscreen=TRUE;	// Fullscreen Flag Set To Fullscreen Mode By Default
 
-GLfloat	rtri;				// Angle For The Triangle ( NEW )
-GLfloat	rquad;				// Angle For The Quad ( NEW )
+// GLfloat	rtri;				// Angle For The Triangle ( NEW )
+// GLfloat	rquad;				// Angle For The Quad ( NEW )
+float  m_rotate[3][5];
+
+//The data exchanged between two threads.
+USHORT*         ThreadFrameBits = new USHORT[640*480];  //raw data
+SLR_ST_Skeleton ThreadSkeleton;
+Mat             ThreadRGB;
+vector<CvPoint3D32f>    LineTrack;
+
 
 HANDLE hThread;
 static DWORD WINAPI RecvProc(LPVOID lpParameter);
 LRESULT	CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);	// Declaration For WndProc
-USHORT*   ThreadFrameBits = new USHORT[640*480];  //raw data
-SLR_ST_Skeleton ThreadSkeleton;
 
 struct RECVPARAM
 {
@@ -85,119 +84,303 @@ int InitGL(GLvoid)										// All Setup For OpenGL Goes Here
 	return TRUE;										// Initialization Went OK
 }
 
+void DrawBackground()
+{
+	GLfloat dep=4.0f;
+	GLfloat edg1=3.0f;
+	GLfloat edg2=4.0f;
+	GLfloat i=-dep;
+	GLfloat j=-edg1;
+	GLfloat k=-edg2;
+	//if (demoStyle == 1)
+	{
+		glPushMatrix();
+		glBegin(GL_LINES);
+		glColor3f(1.0,1.0,1.0);
+		while(i<=dep)
+		{		// Top Face1
+			glVertex3f(-edg2,  edg1,  i);
+			glVertex3f( edg2,  edg1,  i);	
+			// Bottom Face1
+			glVertex3f(-edg2,  -edg1,  i);
+			glVertex3f( edg2,  -edg1,  i);	
+			//Left Face2
+			glVertex3f(-edg2, -edg1,  i);
+			glVertex3f(-edg2,  edg1,  i);
+			// Right face2
+			glVertex3f(edg2, -edg1,  i);
+			glVertex3f(edg2,  edg1,  i);
+			i+=0.4f;
+		}
+
+		while(j<=edg1)
+		{		
+			// Right face1
+			glVertex3f( edg2,  j, -dep);
+			glVertex3f( edg2,  j,  dep);
+			//Left Face1
+			glVertex3f( -edg2,  j, -dep);
+			glVertex3f( -edg2,  j,  dep);
+			// Back Face1
+			glVertex3f(-edg2,  j, -dep);
+			glVertex3f( edg2,  j, -dep);	
+			j+=0.4f;
+		}
+
+		while (k<=edg2)
+		{
+			// Top Face2
+			glVertex3f( k,  edg1,  dep);
+			glVertex3f( k,  edg1, -dep);
+			// Bottom Face2
+			glVertex3f( k,  -edg1,  dep);
+			glVertex3f( k,  -edg1, -dep);
+			// Back Face2
+			glVertex3f(k, -edg1, -dep);
+			glVertex3f(k,  edg1, -dep);
+			k+=0.4f;
+		}
+
+		glEnd();
+		glPopMatrix();
+
+	}
+}
+
+void DrawMiddleFinger(float x, float y, float z)
+{
+	float scale = 40;
+	glTranslatef(x, y, z);//移动到指定位置
+
+	glPushMatrix();
+	glRotatef((float)m_rotate[0][2], 1.0, 0.0, 0.0);//控制旋转第一个关节
+
+	glPushMatrix();
+
+	glPushMatrix();
+	glutSolidSphere(1.5/scale, 8, 8);//绘制中指的第一个关节，球A
+	glPopMatrix();
+	glRotatef(-90.0, 1.0, 0.0, 0.0);
+	glPushMatrix();
+	GLUquadricObj *middFinger1;
+	middFinger1=gluNewQuadric();
+	gluQuadricDrawStyle(middFinger1,GLU_FILL);
+	gluCylinder(middFinger1, 1.25/scale, 1.2/scale, 4/scale, 8, 8);//中指的第一个指节，圆柱1
+	glPopMatrix();
+	glPopMatrix();//第一个指节绘制完毕
+
+	glTranslatef(0.0,4/scale,0.0);
+	glRotatef((GLfloat)m_rotate[1][2], 1.0, 0.0, 0.0);//控制旋转第二个指节
+	glTranslatef(0.0, -4/scale, 0.0);
+	glPushMatrix();
+
+	glPushMatrix();
+	glTranslatef(0.0, 4.1/scale, 0.0);
+	glutSolidSphere(1.25/scale, 8, 8);//绘制中指的第二个关节，球B
+	glTranslatef(0.0, -4.1/scale, 0.0);
+	glPopMatrix();
+
+	glTranslatef(0.0, 4.2/scale, 0.0);
+	glRotatef(-90, 1.0, 0.0, 0.0);
+	glPushMatrix();
+	GLUquadricObj *middFinger2;
+	middFinger2=gluNewQuadric();
+	gluQuadricDrawStyle(middFinger2, GLU_FILL);
+	gluCylinder(middFinger2, 1.2/scale, 1.2/scale, 4/scale, 8, 8);//中指的第二个指节，圆柱2
+	glPopMatrix(); 
+	glTranslatef(0.0, -4.2/scale, 0.0);
+	glPopMatrix();//第二节手指绘制完毕
+
+	glTranslatef(0.0, 8.2/scale, 0.0); //绘制第三指节，即最后一个指节！
+	glRotatef((GLfloat)m_rotate[2][2], 1.0, 0.0, 0.0);//控制旋转第三个指节
+	glTranslatef(0.0, -8.2/scale, 0.0);
+	glPushMatrix();
+
+	glTranslatef(0.0, 8.0/scale, 0.0);	 
+	glPushMatrix();
+	glutSolidSphere(1.25/scale, 8, 8);//绘制中指的第三个关节，球C  
+	glPopMatrix();   
+	glTranslatef(0.0, -8.0/scale, 0.0); 
+
+	glTranslatef(0.0, 8.1/scale, 0.0);
+	glRotatef(-90, 1.0, 0.0, 0.0);	
+	glPushMatrix();	  
+	GLUquadricObj *middFinger3;
+	middFinger3=gluNewQuadric();
+	gluQuadricDrawStyle(middFinger3, GLU_FILL);
+	gluCylinder(middFinger3, 1.2/scale, 1.2/scale, 4/scale, 8, 8);//中指的第三个指节，圆柱3
+	glPopMatrix();
+	glRotatef(90, 1.0, 0.0, 0.0);
+	glTranslatef(0.0, -8.1/scale, 0.0);
+
+	glTranslatef(0.0, 12.0/scale, 0.0);
+	glPushMatrix();//绘制指尖
+	glutSolidSphere(1.2/scale, 8, 4);//绘制指尖
+	glPopMatrix();
+	glTranslatef(0.0, -12.0/scale, 0.0);
+	glPopMatrix();
+
+	glPopMatrix();
+	gluDeleteQuadric(middFinger1);//删除二次曲面对象
+	gluDeleteQuadric(middFinger2);
+	gluDeleteQuadric(middFinger3);
+}
+
+void DrawPalm(float x,float y, float z)
+{
+	float scale = 40;
+	glTranslatef(x, y, z);//将手掌模型移动到指定位置
+	  
+	glPushMatrix();//矩形 的手掌模型案
+	glTranslatef(-0.7/scale, 0.25/scale, 0.0);
+	glScalef(6.0/scale, 7.0/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glTranslatef(0.6/scale, -0.25/scale, 0.0);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(-0.1/scale, -2.95/scale, 0.0);
+	glScalef(5.7/scale, 1.8/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glTranslatef(0.1/scale, 2.95/scale, 0.0);
+	glPopMatrix();
+	
+	glPushMatrix();
+	glTranslatef(0.7/scale, 0.0, 0.0);
+	glScalef(6.0/scale, 5.0/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(2.45/scale, -2.6/scale, 0.0);
+	glRotatef(49.0, 0.0, 0.0, 1.0);	
+	glScalef(1.75/scale, 1.75/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glTranslatef(-2.45/scale, 2.6/scale, 0.0);
+	glPopMatrix();
+
+	/*glPushMatrix();//方案二：八边形
+	glTranslatef(-0.9, 1.9, 0.0);
+	glScalef(6.5, 4.0, 2.4);
+	glutSolidCube(1.0);
+	glTranslatef(0.9, -1.9, 0.0);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0.7, 1.75, 0.0);
+	glScalef(6.0, 1.8, 2.4);
+	glutSolidCube(1.0);
+	glPopMatrix();
+	glScalef(1.0, 1.0, 0.5);
+	glPushMatrix();
+	glRotatef(15.0, 0.0, 0.0, 1.0);
+	glTranslatef(-0.3, 0.0, 0.0);
+	glutSolidSphere(4.8, 8, 8);
+	glPopMatrix();*/
+}
+
+void HandDisplay(float x,float y, float z)
+{
+	float scale = 40;
+
+	glTranslatef(x, y, z);
+	glRotatef(0,0,1,0);
+	glPushMatrix ();
+		glPushMatrix();//载入手掌
+			glScalef(1.3, 1.3, 0.9);
+			DrawPalm(1.0/scale, -4.0/scale, 0.0);
+		glPopMatrix();
+
+		glScalef(0.8, 0.75, 0.8);
+
+		glPushMatrix();//载入中指
+			DrawMiddleFinger(0.0, -0.3/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入无名指
+			//DrawRingeFinger(3.2, -0.4, 0.0);
+			DrawMiddleFinger(3.2/scale, -0.4/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入食指
+			//DrawForefinger(-3.2, -0.7, 0.0);
+			DrawMiddleFinger(-3.2/scale, -0.7/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入小拇指
+			//DrawLittleFinger(6.3, -2.5, 0.0);
+			DrawMiddleFinger(6.3/scale, -2.5/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入大拇指
+			glScalef(1.0, 1.1, 1.0);
+			//DrawThumb(-3.0, -11.0, 0.0);
+			DrawMiddleFinger(-3.0/scale, -11.0/scale, 0.0);
+		glPopMatrix();
+
+	glPopMatrix ();
+
+} 
+
 int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 {
-/*	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
-	glLoadIdentity();									// Reset The Current Modelview Matrix
-	glTranslatef(-1.5f,0.0f,-6.0f);						// Move Left 1.5 Units And Into The Screen 6.0
-	glBegin(GL_TRIANGLES);								// Drawing Using Triangles
-		glVertex3f( 0.0f, 1.0f, 0.0f);					// Top
-		glVertex3f(-1.0f,-1.0f, 0.0f);					// Bottom Left
-		glVertex3f( 1.0f,-1.0f, 0.0f);					// Bottom Right
-	glEnd();											// Finished Drawing The Triangle
-	glTranslatef(3.0f,0.0f,0.0f);						// Move Right 3 Units
-	glBegin(GL_QUADS);									// Draw A Quad
-		glVertex3f(-1.0f, 1.0f, 0.0f);					// Top Left
-		glVertex3f( 1.0f, 1.0f, 0.0f);					// Top Right
-		glVertex3f( 1.0f,-1.0f, 0.0f);					// Bottom Right
-		glVertex3f(-1.0f,-1.0f, 0.0f);					// Bottom Left
-	glEnd();											// Done Drawing The Quad
-	return TRUE;										// Keep Going
-	*/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
 
-	// 	glLoadIdentity();									// Reset The Current Modelview Matrix
-// 	glTranslatef(-1.5f,0.0f,-6.0f);						// Move Left 1.5 Units And Into The Screen 6.0
-// 	glRotatef(rtri,0.0f,1.0f,0.0f);						// Rotate The Triangle On The Y axis ( NEW )
-// 	glBegin(GL_TRIANGLES);								// Start Drawing A Triangle
-// 	glColor3f(1.0f,0.0f,0.0f);						// Red
-// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Front)
-// 	glColor3f(0.0f,1.0f,0.0f);						// Green
-// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Left Of Triangle (Front)
-// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
-// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Right Of Triangle (Front)
-// 	glColor3f(1.0f,0.0f,0.0f);						// Red
-// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Right)
-// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
-// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Left Of Triangle (Right)
-// 	glColor3f(0.0f,1.0f,0.0f);						// Green
-// 	glVertex3f( 1.0f,-1.0f, -1.0f);					// Right Of Triangle (Right)
-// 	glColor3f(1.0f,0.0f,0.0f);						// Red
-// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Back)
-// 	glColor3f(0.0f,1.0f,0.0f);						// Green
-// 	glVertex3f( 1.0f,-1.0f, -1.0f);					// Left Of Triangle (Back)
-// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
-// 	glVertex3f(-1.0f,-1.0f, -1.0f);					// Right Of Triangle (Back)
-// 	glColor3f(1.0f,0.0f,0.0f);						// Red
-// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Left)
-// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
-// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Left Of Triangle (Left)
-// 	glColor3f(0.0f,1.0f,0.0f);						// Green
-// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Right Of Triangle (Left)
-// 	glEnd();											// Done Drawing The Pyramid
-// 
-// 	glLoadIdentity();									// Reset The Current Modelview Matrix
-// 	glTranslatef(1.5f,0.0f,-7.0f);						// Move Right 1.5 Units And Into The Screen 7.0
-// 	glRotatef(rquad,1.0f,1.0f,1.0f);					// Rotate The Quad On The X axis ( NEW )
-// 	glBegin(GL_QUADS);									// Draw A Quad
-// 	glColor3f(0.0f,1.0f,0.0f);						// Set The Color To Green
-// 	glVertex3f( 1.0f, 1.0f,-1.0f);					// Top Right Of The Quad (Top)
-// 	glVertex3f(-1.0f, 1.0f,-1.0f);					// Top Left Of The Quad (Top)
-// 	glVertex3f(-1.0f, 1.0f, 1.0f);					// Bottom Left Of The Quad (Top)
-// 	glVertex3f( 1.0f, 1.0f, 1.0f);					// Bottom Right Of The Quad (Top)
-// 	glColor3f(1.0f,0.5f,0.0f);						// Set The Color To Orange
-// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Top Right Of The Quad (Bottom)
-// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Top Left Of The Quad (Bottom)
-// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Bottom Left Of The Quad (Bottom)
-// 	glVertex3f( 1.0f,-1.0f,-1.0f);					// Bottom Right Of The Quad (Bottom)
-// 	glColor3f(1.0f,0.0f,0.0f);						// Set The Color To Red
-// 	glVertex3f( 1.0f, 1.0f, 1.0f);					// Top Right Of The Quad (Front)
-// 	glVertex3f(-1.0f, 1.0f, 1.0f);					// Top Left Of The Quad (Front)
-// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Bottom Left Of The Quad (Front)
-// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Bottom Right Of The Quad (Front)
-// 	glColor3f(1.0f,1.0f,0.0f);						// Set The Color To Yellow
-// 	glVertex3f( 1.0f,-1.0f,-1.0f);					// Top Right Of The Quad (Back)
-// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Top Left Of The Quad (Back)
-// 	glVertex3f(-1.0f, 1.0f,-1.0f);					// Bottom Left Of The Quad (Back)
-// 	glVertex3f( 1.0f, 1.0f,-1.0f);					// Bottom Right Of The Quad (Back)
-// 	glColor3f(0.0f,0.0f,1.0f);						// Set The Color To Blue
-// 	glVertex3f(-1.0f, 1.0f, 1.0f);					// Top Right Of The Quad (Left)
-// 	glVertex3f(-1.0f, 1.0f,-1.0f);					// Top Left Of The Quad (Left)
-// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Bottom Left Of The Quad (Left)
-// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Bottom Right Of The Quad (Left)
-// 	glColor3f(1.0f,0.0f,1.0f);						// Set The Color To Violet
-// 	glVertex3f( 1.0f, 1.0f,-1.0f);					// Top Right Of The Quad (Right)
-// 	glVertex3f( 1.0f, 1.0f, 1.0f);					// Top Left Of The Quad (Right)
-// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Bottom Left Of The Quad (Right)
-// 	glVertex3f( 1.0f,-1.0f,-1.0f);					// Bottom Right Of The Quad (Right)
-// 	glEnd();											// Done Drawing The Quad
-
+	DrawBackground();
 	
+
+
+	CvPoint3D32f temp;
+	temp.x = ThreadSkeleton._3dPoint[11].x;
+	temp.y = ThreadSkeleton._3dPoint[11].y;
+	temp.z = ThreadSkeleton._3dPoint[11].z;
+	LineTrack.push_back(temp);
+
+
+
 	float xScale = 2.5;
 	float yScale = 2.5;
 	float zScale = 3;
 	glLoadIdentity();									// Reset The Current Modelview Matrix
-	glTranslatef(0.0f,0.0f,-7.0f);						// Move Right 1.5 Units And Into The Screen 7.0
-// 	glPointSize(10.0f);
-// 	glBegin(GL_POINTS);
-// 	glColor3f(0.0f,1.0f,0.0f);
-// 	glVertex3f(2.5*ThreadSkeleton._3dPoint[11].x, 2.5*ThreadSkeleton._3dPoint[11].y,
-// 		5*ThreadSkeleton._3dPoint[11].z);
-// 	glEnd();
-	glBegin(GL_QUADS);									// Draw A Quad
-	glColor3f(0.0f,1.0f,0.0f);						// Set The Color To Green
-	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
-		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Right Of The Quad (Top)
-	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*ThreadSkeleton._3dPoint[11].y,
-		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Left Of The Quad (Top)
-	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
-		zScale*ThreadSkeleton._3dPoint[11].z);					// Bottom Left Of The Quad (Top)
-	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
+	glTranslatef(0.0f,0.0f,-7.0f);	
+	HandDisplay(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
 		zScale*ThreadSkeleton._3dPoint[11].z);
+// 	glBegin(GL_QUADS);									// Draw A Quad
+// 	glColor3f(0.0f,1.0f,0.0f);						// Set The Color To Green
+// 	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
+// 		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Right Of The Quad (Top)
+// 	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*ThreadSkeleton._3dPoint[11].y,
+// 		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Left Of The Quad (Top)
+// 	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
+// 		zScale*ThreadSkeleton._3dPoint[11].z);					// Bottom Left Of The Quad (Top)
+// 	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
+// 		zScale*ThreadSkeleton._3dPoint[11].z);
+// 	glEnd();
+
+	glLoadIdentity();									// Reset The Current Modelview Matrix
+	glTranslatef(0.0f,0.0f,-7.0f);	
+	glPointSize(5.0f);
+	glBegin(GL_POINTS);									// Draw A Quad
+	glColor3f(1.0f,0.0f,0.0f);
+	for (int i=0; i<LineTrack.size(); i++)
+	{
+		glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
+	}
 	glEnd();
 
-	rtri+=0.6f;											// Increase The Rotation Variable For The Triangle ( NEW )
-	rquad-=0.15f;										// Decrease The Rotation Variable For The Quad ( NEW )
+	glLoadIdentity();									// Reset The Current Modelview Matrix
+	glTranslatef(0.0f,0.0f,-7.0f);	
+	glBegin(GL_LINES);									// Draw A Quad
+	glColor3f(1.0f,0.0f,0.0f);
+	for (int i=0; i<LineTrack.size()-1; i++)
+	{
+		glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
+		glVertex3f(xScale*LineTrack[i+1].x, yScale*LineTrack[i+1].y, zScale*LineTrack[i+1].z);
+	}
+	glEnd();
+
+// 	rtri+=0.6f;											// Increase The Rotation Variable For The Triangle ( NEW )
+// 	rquad-=0.15f;										// Decrease The Rotation Variable For The Quad ( NEW )
 	return TRUE;	
 }
 
@@ -497,6 +680,14 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 
 	hThread = CreateThread(NULL, 0, RecvProc, (LPVOID)pRecvParam, 0, NULL);
 	CloseHandle(hThread);
+
+	for (int i=0; i<3; i++)
+	{
+		for (int j=0; j<5; j++)
+		{
+			m_rotate[i][j] = 40;
+		}
+	}
 
 
 
