@@ -12,6 +12,10 @@
 #include <gl\glaux.h>		// Header File For The Glaux Library
 #include "NuiApi.h"
 #include "opencv2/opencv.hpp"
+#include "msKinect.h"
+
+MsKinect m_pKinect;
+
 
 HDC			hDC=NULL;		// Private GDI Device Context
 HGLRC		hRC=NULL;		// Permanent Rendering Context
@@ -183,31 +187,31 @@ GLvoid KillGLWindow(GLvoid)								// Properly Kill The Window
 	{
 		if (!wglMakeCurrent(NULL,NULL))					// Are We Able To Release The DC And RC Contexts?
 		{
-			MessageBox(NULL,"Release Of DC And RC Failed.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
+			MessageBox(NULL,L"Release Of DC And RC Failed.",L"SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
 		}
 
 		if (!wglDeleteContext(hRC))						// Are We Able To Delete The RC?
 		{
-			MessageBox(NULL,"Release Rendering Context Failed.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
+			MessageBox(NULL,L"Release Rendering Context Failed.",L"SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
 		}
 		hRC=NULL;										// Set RC To NULL
 	}
 
 	if (hDC && !ReleaseDC(hWnd,hDC))					// Are We Able To Release The DC
 	{
-		MessageBox(NULL,"Release Device Context Failed.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
+		MessageBox(NULL,L"Release Device Context Failed.",L"SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
 		hDC=NULL;										// Set DC To NULL
 	}
 
 	if (hWnd && !DestroyWindow(hWnd))					// Are We Able To Destroy The Window?
 	{
-		MessageBox(NULL,"Could Not Release hWnd.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
+		MessageBox(NULL,L"Could Not Release hWnd.",L"SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
 		hWnd=NULL;										// Set hWnd To NULL
 	}
 
-	if (!UnregisterClass("OpenGL",hInstance))			// Are We Able To Unregister Class
+	if (!UnregisterClass(L"OpenGL",hInstance))			// Are We Able To Unregister Class
 	{
-		MessageBox(NULL,"Could Not Unregister Class.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
+		MessageBox(NULL,L"Could Not Unregister Class.",L"SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
 		hInstance=NULL;									// Set hInstance To NULL
 	}
 }
@@ -243,11 +247,11 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 	wc.hCursor			= LoadCursor(NULL, IDC_ARROW);			// Load The Arrow Pointer
 	wc.hbrBackground	= NULL;									// No Background Required For GL
 	wc.lpszMenuName		= NULL;									// We Don't Want A Menu
-	wc.lpszClassName	= "OpenGL";								// Set The Class Name
+	wc.lpszClassName	= L"OpenGL";								// Set The Class Name
 
 	if (!RegisterClass(&wc))									// Attempt To Register The Window Class
 	{
-		MessageBox(NULL,"Failed To Register The Window Class.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Failed To Register The Window Class.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;											// Return FALSE
 	}
 	
@@ -265,14 +269,14 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 		if (ChangeDisplaySettings(&dmScreenSettings,CDS_FULLSCREEN)!=DISP_CHANGE_SUCCESSFUL)
 		{
 			// If The Mode Fails, Offer Two Options.  Quit Or Use Windowed Mode.
-			if (MessageBox(NULL,"The Requested Fullscreen Mode Is Not Supported By\nYour Video Card. Use Windowed Mode Instead?","NeHe GL",MB_YESNO|MB_ICONEXCLAMATION)==IDYES)
+			if (MessageBox(NULL,L"The Requested Fullscreen Mode Is Not Supported By\nYour Video Card. Use Windowed Mode Instead?",L"NeHe GL",MB_YESNO|MB_ICONEXCLAMATION)==IDYES)
 			{
 				fullscreen=FALSE;		// Windowed Mode Selected.  Fullscreen = FALSE
 			}
 			else
 			{
 				// Pop Up A Message Box Letting User Know The Program Is Closing.
-				MessageBox(NULL,"Program Will Now Close.","ERROR",MB_OK|MB_ICONSTOP);
+				MessageBox(NULL,L"Program Will Now Close.",L"ERROR",MB_OK|MB_ICONSTOP);
 				return FALSE;									// Return FALSE
 			}
 		}
@@ -294,8 +298,8 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 
 	// Create The Window
 	if (!(hWnd=CreateWindowEx(	dwExStyle,							// Extended Style For The Window
-								"OpenGL",							// Class Name
-								title,								// Window Title
+								L"OpenGL",							// Class Name
+								L"3D Drawing",								// Window Title
 								dwStyle |							// Defined Window Style
 								WS_CLIPSIBLINGS |					// Required Window Style
 								WS_CLIPCHILDREN,					// Required Window Style
@@ -308,7 +312,7 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 								NULL)))								// Dont Pass Anything To WM_CREATE
 	{
 		KillGLWindow();								// Reset The Display
-		MessageBox(NULL,"Window Creation Error.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Window Creation Error.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;								// Return FALSE
 	}
 
@@ -337,35 +341,35 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 	if (!(hDC=GetDC(hWnd)))							// Did We Get A Device Context?
 	{
 		KillGLWindow();								// Reset The Display
-		MessageBox(NULL,"Can't Create A GL Device Context.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Can't Create A GL Device Context.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;								// Return FALSE
 	}
 
 	if (!(PixelFormat=ChoosePixelFormat(hDC,&pfd)))	// Did Windows Find A Matching Pixel Format?
 	{
 		KillGLWindow();								// Reset The Display
-		MessageBox(NULL,"Can't Find A Suitable PixelFormat.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Can't Find A Suitable PixelFormat.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;								// Return FALSE
 	}
 
 	if(!SetPixelFormat(hDC,PixelFormat,&pfd))		// Are We Able To Set The Pixel Format?
 	{
 		KillGLWindow();								// Reset The Display
-		MessageBox(NULL,"Can't Set The PixelFormat.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Can't Set The PixelFormat.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;								// Return FALSE
 	}
 
 	if (!(hRC=wglCreateContext(hDC)))				// Are We Able To Get A Rendering Context?
 	{
 		KillGLWindow();								// Reset The Display
-		MessageBox(NULL,"Can't Create A GL Rendering Context.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Can't Create A GL Rendering Context.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;								// Return FALSE
 	}
 
 	if(!wglMakeCurrent(hDC,hRC))					// Try To Activate The Rendering Context
 	{
 		KillGLWindow();								// Reset The Display
-		MessageBox(NULL,"Can't Activate The GL Rendering Context.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Can't Activate The GL Rendering Context.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;								// Return FALSE
 	}
 
@@ -377,7 +381,7 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 	if (!InitGL())									// Initialize Our Newly Created GL Window
 	{
 		KillGLWindow();								// Reset The Display
-		MessageBox(NULL,"Initialization Failed.","ERROR",MB_OK|MB_ICONEXCLAMATION);
+		MessageBox(NULL,L"Initialization Failed.",L"ERROR",MB_OK|MB_ICONEXCLAMATION);
 		return FALSE;								// Return FALSE
 	}
 
@@ -471,10 +475,10 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 
 
 	// Ask The User Which Screen Mode They Prefer
-	if (MessageBox(NULL,"Would You Like To Run In Fullscreen Mode?", "Start FullScreen?",MB_YESNO|MB_ICONQUESTION)==IDNO)
-	{
+// 	if (MessageBox(NULL,L"Would You Like To Run In Fullscreen Mode?", L"Start FullScreen?",MB_YESNO|MB_ICONQUESTION)==IDNO)
+// 	{
 		fullscreen=FALSE;							// Windowed Mode
-	}
+	//}
 
 	// Create Our OpenGL Window
 	if (!CreateGLWindow("NeHe's First Polygon Tutorial",640,480,16,fullscreen))
@@ -564,131 +568,140 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 
 DWORD WINAPI RecvProc(LPVOID lpParameter)
 {
-
-	//For Kinect on-line sampling 
-	INuiSensor*             m_pNuiSensor;
-	HANDLE                  m_pDepthStreamHandle;
-	HANDLE                  m_pColorStreamHandle;
-	HANDLE                  m_hNextDepthFrameEvent;
-	HANDLE                  m_hNextColorFrameEvent;
-	INuiFrameTexture*       m_pTexture;
-	NUI_LOCKED_RECT         m_LockedRect;
-	BYTE*                   m_depthRGBX;
-	static const int        m_cDepthWidth = 640;
-	static const int        m_cDepthHeight = 480;
-	static const int        m_cBytesPerPixel = 4;
-	//////////////////////////////////////////////////////////////////////////
-	INuiSensor * pNuiSensor;
-	HRESULT hr;
-
-	int iSensorCount = 0;
-	hr = NuiGetSensorCount(&iSensorCount);
-	if (FAILED(hr))
-	{
-		return hr;
-	}
-	// Look at each Kinect sensor
-	for (int i = 0; i < iSensorCount; ++i)
-	{
-		// Create the sensor so we can check status, if we can't create it, move on to the next
-		hr = NuiCreateSensorByIndex(i, &pNuiSensor);
-		if (FAILED(hr))
-		{
-			continue;
-		}
-
-		// Get the status of the sensor, and if connected, then we can initialize it
-		hr = pNuiSensor->NuiStatus();
-		if (S_OK == hr)
-		{
-			m_pNuiSensor = pNuiSensor;
-			break;
-		}
-
-		// This sensor wasn't OK, so release it since we're not using it
-		pNuiSensor->Release();
-	}
-
-	if (NULL != m_pNuiSensor)
-	{
-		// Initialize the Kinect and specify that we'll be using depth
-		hr = m_pNuiSensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_DEPTH); 
-		if (SUCCEEDED(hr))
-		{
-			// Create an event that will be signaled when depth data is available
-			m_hNextDepthFrameEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-
-			// Open a depth image stream to receive depth frames
-			hr = m_pNuiSensor->NuiImageStreamOpen(
-				NUI_IMAGE_TYPE_DEPTH,
-				NUI_IMAGE_RESOLUTION_640x480,
-				0,
-				2,
-				m_hNextDepthFrameEvent,
-				&m_pDepthStreamHandle);
-		}
-	}
-
-	if (NULL == m_pNuiSensor || FAILED(hr))
-	{
-		//SetStatusMessage(L"No ready Kinect found!");
-		return E_FAIL;
-	}
-
-	m_depthRGBX       = new BYTE[m_cDepthWidth*m_cDepthHeight*m_cBytesPerPixel];
-
-	//////////////////////////////////////////////////////////////////////////
-	//update
-	while (1)
-	{
-		if (NULL == m_pNuiSensor)
-		{
-			continue;
-		}
-
-		if ( WAIT_OBJECT_0 == WaitForSingleObject(m_hNextDepthFrameEvent, 0) )
-		{
-			//////////////////////////////////////////////////////////////////////////
-
-			NUI_IMAGE_FRAME imageFrame;
-			hr = m_pNuiSensor->NuiImageStreamGetNextFrame(m_pDepthStreamHandle, 0, &imageFrame);
-			if (FAILED(hr))
-			{
-				return false;
-			}
-			m_pTexture = imageFrame.pFrameTexture;
-			// Lock the frame data so the Kinect knows not to modify it while we're reading it
-			m_pTexture->LockRect(0, &m_LockedRect, NULL, 0);
-
-			// Make sure we've received valid data
-			if (m_LockedRect.Pitch != 0)
-			{
-				BYTE * rgbrun = m_depthRGBX;
-				const USHORT * pBufferRun = (const USHORT *)m_LockedRect.pBits;
-				int count = 0;
-				//read data from the kinect sensor when needed
-				while ( count < m_cDepthWidth * m_cDepthHeight)
-				{
-					// discard the portion of the depth that contains only the player index
-					USHORT depth = NuiDepthPixelToDepth(*pBufferRun);
-					*(ThreadFrameBits+count) = depth;
-					count++;
-					++pBufferRun;
-				}
-			}
-			// We're done with the texture so unlock it
-			m_pTexture->UnlockRect(0);
-
-			// Release the frame
-			m_pNuiSensor->NuiImageStreamReleaseFrame(m_pDepthStreamHandle, &imageFrame);
-		}
-	}
-
-
-	// CTitaniumRemoteClientApp dfd;
-	// dfd.InitInstance();
-
-	//KinectClientConnectThread m_clientConnectThread;
-	/*	CTitaniumRemoteClientApp theApp;*/
+	m_pKinect.init(0,0,480,640);
+	m_pKinect.singleCaptureThread();
 	return 0;
 }
+
+
+
+// DWORD WINAPI RecvProc(LPVOID lpParameter)
+// {
+// 
+// 	//For Kinect on-line sampling 
+// 	INuiSensor*             m_pNuiSensor;
+// 	HANDLE                  m_pDepthStreamHandle;
+// 	HANDLE                  m_pColorStreamHandle;
+// 	HANDLE                  m_hNextDepthFrameEvent;
+// 	HANDLE                  m_hNextColorFrameEvent;
+// 	INuiFrameTexture*       m_pTexture;
+// 	NUI_LOCKED_RECT         m_LockedRect;
+// 	BYTE*                   m_depthRGBX;
+// 	static const int        m_cDepthWidth = 640;
+// 	static const int        m_cDepthHeight = 480;
+// 	static const int        m_cBytesPerPixel = 4;
+// 	//////////////////////////////////////////////////////////////////////////
+// 	INuiSensor * pNuiSensor;
+// 	HRESULT hr;
+// 
+// 	int iSensorCount = 0;
+// 	hr = NuiGetSensorCount(&iSensorCount);
+// 	if (FAILED(hr))
+// 	{
+// 		return hr;
+// 	}
+// 	// Look at each Kinect sensor
+// 	for (int i = 0; i < iSensorCount; ++i)
+// 	{
+// 		// Create the sensor so we can check status, if we can't create it, move on to the next
+// 		hr = NuiCreateSensorByIndex(i, &pNuiSensor);
+// 		if (FAILED(hr))
+// 		{
+// 			continue;
+// 		}
+// 
+// 		// Get the status of the sensor, and if connected, then we can initialize it
+// 		hr = pNuiSensor->NuiStatus();
+// 		if (S_OK == hr)
+// 		{
+// 			m_pNuiSensor = pNuiSensor;
+// 			break;
+// 		}
+// 
+// 		// This sensor wasn't OK, so release it since we're not using it
+// 		pNuiSensor->Release();
+// 	}
+// 
+// 	if (NULL != m_pNuiSensor)
+// 	{
+// 		// Initialize the Kinect and specify that we'll be using depth
+// 		hr = m_pNuiSensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_DEPTH); 
+// 		if (SUCCEEDED(hr))
+// 		{
+// 			// Create an event that will be signaled when depth data is available
+// 			m_hNextDepthFrameEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+// 
+// 			// Open a depth image stream to receive depth frames
+// 			hr = m_pNuiSensor->NuiImageStreamOpen(
+// 				NUI_IMAGE_TYPE_DEPTH,
+// 				NUI_IMAGE_RESOLUTION_640x480,
+// 				0,
+// 				2,
+// 				m_hNextDepthFrameEvent,
+// 				&m_pDepthStreamHandle);
+// 		}
+// 	}
+// 
+// 	if (NULL == m_pNuiSensor || FAILED(hr))
+// 	{
+// 		//SetStatusMessage(L"No ready Kinect found!");
+// 		return E_FAIL;
+// 	}
+// 
+// 	m_depthRGBX       = new BYTE[m_cDepthWidth*m_cDepthHeight*m_cBytesPerPixel];
+// 
+// 	//////////////////////////////////////////////////////////////////////////
+// 	//update
+// 	while (1)
+// 	{
+// 		if (NULL == m_pNuiSensor)
+// 		{
+// 			continue;
+// 		}
+// 
+// 		if ( WAIT_OBJECT_0 == WaitForSingleObject(m_hNextDepthFrameEvent, 0) )
+// 		{
+// 			//////////////////////////////////////////////////////////////////////////
+// 
+// 			NUI_IMAGE_FRAME imageFrame;
+// 			hr = m_pNuiSensor->NuiImageStreamGetNextFrame(m_pDepthStreamHandle, 0, &imageFrame);
+// 			if (FAILED(hr))
+// 			{
+// 				return false;
+// 			}
+// 			m_pTexture = imageFrame.pFrameTexture;
+// 			// Lock the frame data so the Kinect knows not to modify it while we're reading it
+// 			m_pTexture->LockRect(0, &m_LockedRect, NULL, 0);
+// 
+// 			// Make sure we've received valid data
+// 			if (m_LockedRect.Pitch != 0)
+// 			{
+// 				BYTE * rgbrun = m_depthRGBX;
+// 				const USHORT * pBufferRun = (const USHORT *)m_LockedRect.pBits;
+// 				int count = 0;
+// 				//read data from the kinect sensor when needed
+// 				while ( count < m_cDepthWidth * m_cDepthHeight)
+// 				{
+// 					// discard the portion of the depth that contains only the player index
+// 					USHORT depth = NuiDepthPixelToDepth(*pBufferRun);
+// 					*(ThreadFrameBits+count) = depth;
+// 					count++;
+// 					++pBufferRun;
+// 				}
+// 			}
+// 			// We're done with the texture so unlock it
+// 			m_pTexture->UnlockRect(0);
+// 
+// 			// Release the frame
+// 			m_pNuiSensor->NuiImageStreamReleaseFrame(m_pDepthStreamHandle, &imageFrame);
+// 		}
+// 	}
+// 
+// 
+// 	// CTitaniumRemoteClientApp dfd;
+// 	// dfd.InitInstance();
+// 
+// 	//KinectClientConnectThread m_clientConnectThread;
+// 	/*	CTitaniumRemoteClientApp theApp;*/
+// 	return 0;
+// }
