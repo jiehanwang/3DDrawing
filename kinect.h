@@ -138,7 +138,7 @@ protected:
     LONGLONG i_ts_rgb;
     LONGLONG i_ts_depth;
     LONGLONG i_ts_skeleton;
-
+public:
     SLR_ST_Skeleton mSkeleton;    
 	Mat mRgb;			   //BGR image
     

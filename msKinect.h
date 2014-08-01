@@ -15,13 +15,15 @@
 #include "Ini.h"
 
 class MsKinect : public Kinect{
+public:
+	HANDLE hNextFrame;
 private:
     INuiSensor* m_pNuiSensor;
 
 	HANDLE hColorStream;
 	HANDLE hDepthStream;
 
-    HANDLE hNextFrame;
+    //HANDLE hNextFrame;
     HANDLE hNextFrameReady;
     HANDLE hNextSkeletonReady;
 
@@ -55,7 +57,7 @@ private:
     //bool queryDevice();
 
     //boost::mutex mtxFrame;
-    bool queryFrame();
+   // bool queryFrame();
 
     Mat oriDepthImg;
 
@@ -63,6 +65,7 @@ private:
     fstream debugFile;
     NUI_TRANSFORM_SMOOTH_PARAMETERS someLatencyParams;
 public:
+	bool queryFrame();
 	MsKinect();
 	~MsKinect();
 

@@ -33,6 +33,7 @@ HANDLE hThread;
 static DWORD WINAPI RecvProc(LPVOID lpParameter);
 LRESULT	CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);	// Declaration For WndProc
 USHORT*   ThreadFrameBits = new USHORT[640*480];  //raw data
+SLR_ST_Skeleton ThreadSkeleton;
 
 struct RECVPARAM
 {
@@ -104,71 +105,96 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	return TRUE;										// Keep Going
 	*/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
-	glLoadIdentity();									// Reset The Current Modelview Matrix
-	glTranslatef(-1.5f,0.0f,-6.0f);						// Move Left 1.5 Units And Into The Screen 6.0
-	glRotatef(rtri,0.0f,1.0f,0.0f);						// Rotate The Triangle On The Y axis ( NEW )
-	glBegin(GL_TRIANGLES);								// Start Drawing A Triangle
-	glColor3f(1.0f,0.0f,0.0f);						// Red
-	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Front)
-	glColor3f(0.0f,1.0f,0.0f);						// Green
-	glVertex3f(-1.0f,-1.0f, 1.0f);					// Left Of Triangle (Front)
-	glColor3f(0.0f,0.0f,1.0f);						// Blue
-	glVertex3f( 1.0f,-1.0f, 1.0f);					// Right Of Triangle (Front)
-	glColor3f(1.0f,0.0f,0.0f);						// Red
-	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Right)
-	glColor3f(0.0f,0.0f,1.0f);						// Blue
-	glVertex3f( 1.0f,-1.0f, 1.0f);					// Left Of Triangle (Right)
-	glColor3f(0.0f,1.0f,0.0f);						// Green
-	glVertex3f( 1.0f,-1.0f, -1.0f);					// Right Of Triangle (Right)
-	glColor3f(1.0f,0.0f,0.0f);						// Red
-	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Back)
-	glColor3f(0.0f,1.0f,0.0f);						// Green
-	glVertex3f( 1.0f,-1.0f, -1.0f);					// Left Of Triangle (Back)
-	glColor3f(0.0f,0.0f,1.0f);						// Blue
-	glVertex3f(-1.0f,-1.0f, -1.0f);					// Right Of Triangle (Back)
-	glColor3f(1.0f,0.0f,0.0f);						// Red
-	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Left)
-	glColor3f(0.0f,0.0f,1.0f);						// Blue
-	glVertex3f(-1.0f,-1.0f,-1.0f);					// Left Of Triangle (Left)
-	glColor3f(0.0f,1.0f,0.0f);						// Green
-	glVertex3f(-1.0f,-1.0f, 1.0f);					// Right Of Triangle (Left)
-	glEnd();											// Done Drawing The Pyramid
 
+	// 	glLoadIdentity();									// Reset The Current Modelview Matrix
+// 	glTranslatef(-1.5f,0.0f,-6.0f);						// Move Left 1.5 Units And Into The Screen 6.0
+// 	glRotatef(rtri,0.0f,1.0f,0.0f);						// Rotate The Triangle On The Y axis ( NEW )
+// 	glBegin(GL_TRIANGLES);								// Start Drawing A Triangle
+// 	glColor3f(1.0f,0.0f,0.0f);						// Red
+// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Front)
+// 	glColor3f(0.0f,1.0f,0.0f);						// Green
+// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Left Of Triangle (Front)
+// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
+// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Right Of Triangle (Front)
+// 	glColor3f(1.0f,0.0f,0.0f);						// Red
+// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Right)
+// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
+// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Left Of Triangle (Right)
+// 	glColor3f(0.0f,1.0f,0.0f);						// Green
+// 	glVertex3f( 1.0f,-1.0f, -1.0f);					// Right Of Triangle (Right)
+// 	glColor3f(1.0f,0.0f,0.0f);						// Red
+// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Back)
+// 	glColor3f(0.0f,1.0f,0.0f);						// Green
+// 	glVertex3f( 1.0f,-1.0f, -1.0f);					// Left Of Triangle (Back)
+// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
+// 	glVertex3f(-1.0f,-1.0f, -1.0f);					// Right Of Triangle (Back)
+// 	glColor3f(1.0f,0.0f,0.0f);						// Red
+// 	glVertex3f( 0.0f, 1.0f, 0.0f);					// Top Of Triangle (Left)
+// 	glColor3f(0.0f,0.0f,1.0f);						// Blue
+// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Left Of Triangle (Left)
+// 	glColor3f(0.0f,1.0f,0.0f);						// Green
+// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Right Of Triangle (Left)
+// 	glEnd();											// Done Drawing The Pyramid
+// 
+// 	glLoadIdentity();									// Reset The Current Modelview Matrix
+// 	glTranslatef(1.5f,0.0f,-7.0f);						// Move Right 1.5 Units And Into The Screen 7.0
+// 	glRotatef(rquad,1.0f,1.0f,1.0f);					// Rotate The Quad On The X axis ( NEW )
+// 	glBegin(GL_QUADS);									// Draw A Quad
+// 	glColor3f(0.0f,1.0f,0.0f);						// Set The Color To Green
+// 	glVertex3f( 1.0f, 1.0f,-1.0f);					// Top Right Of The Quad (Top)
+// 	glVertex3f(-1.0f, 1.0f,-1.0f);					// Top Left Of The Quad (Top)
+// 	glVertex3f(-1.0f, 1.0f, 1.0f);					// Bottom Left Of The Quad (Top)
+// 	glVertex3f( 1.0f, 1.0f, 1.0f);					// Bottom Right Of The Quad (Top)
+// 	glColor3f(1.0f,0.5f,0.0f);						// Set The Color To Orange
+// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Top Right Of The Quad (Bottom)
+// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Top Left Of The Quad (Bottom)
+// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Bottom Left Of The Quad (Bottom)
+// 	glVertex3f( 1.0f,-1.0f,-1.0f);					// Bottom Right Of The Quad (Bottom)
+// 	glColor3f(1.0f,0.0f,0.0f);						// Set The Color To Red
+// 	glVertex3f( 1.0f, 1.0f, 1.0f);					// Top Right Of The Quad (Front)
+// 	glVertex3f(-1.0f, 1.0f, 1.0f);					// Top Left Of The Quad (Front)
+// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Bottom Left Of The Quad (Front)
+// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Bottom Right Of The Quad (Front)
+// 	glColor3f(1.0f,1.0f,0.0f);						// Set The Color To Yellow
+// 	glVertex3f( 1.0f,-1.0f,-1.0f);					// Top Right Of The Quad (Back)
+// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Top Left Of The Quad (Back)
+// 	glVertex3f(-1.0f, 1.0f,-1.0f);					// Bottom Left Of The Quad (Back)
+// 	glVertex3f( 1.0f, 1.0f,-1.0f);					// Bottom Right Of The Quad (Back)
+// 	glColor3f(0.0f,0.0f,1.0f);						// Set The Color To Blue
+// 	glVertex3f(-1.0f, 1.0f, 1.0f);					// Top Right Of The Quad (Left)
+// 	glVertex3f(-1.0f, 1.0f,-1.0f);					// Top Left Of The Quad (Left)
+// 	glVertex3f(-1.0f,-1.0f,-1.0f);					// Bottom Left Of The Quad (Left)
+// 	glVertex3f(-1.0f,-1.0f, 1.0f);					// Bottom Right Of The Quad (Left)
+// 	glColor3f(1.0f,0.0f,1.0f);						// Set The Color To Violet
+// 	glVertex3f( 1.0f, 1.0f,-1.0f);					// Top Right Of The Quad (Right)
+// 	glVertex3f( 1.0f, 1.0f, 1.0f);					// Top Left Of The Quad (Right)
+// 	glVertex3f( 1.0f,-1.0f, 1.0f);					// Bottom Left Of The Quad (Right)
+// 	glVertex3f( 1.0f,-1.0f,-1.0f);					// Bottom Right Of The Quad (Right)
+// 	glEnd();											// Done Drawing The Quad
+
+	
+	float xScale = 2.5;
+	float yScale = 2.5;
+	float zScale = 3;
 	glLoadIdentity();									// Reset The Current Modelview Matrix
-	glTranslatef(1.5f,0.0f,-7.0f);						// Move Right 1.5 Units And Into The Screen 7.0
-	glRotatef(rquad,1.0f,1.0f,1.0f);					// Rotate The Quad On The X axis ( NEW )
+	glTranslatef(0.0f,0.0f,-7.0f);						// Move Right 1.5 Units And Into The Screen 7.0
+// 	glPointSize(10.0f);
+// 	glBegin(GL_POINTS);
+// 	glColor3f(0.0f,1.0f,0.0f);
+// 	glVertex3f(2.5*ThreadSkeleton._3dPoint[11].x, 2.5*ThreadSkeleton._3dPoint[11].y,
+// 		5*ThreadSkeleton._3dPoint[11].z);
+// 	glEnd();
 	glBegin(GL_QUADS);									// Draw A Quad
 	glColor3f(0.0f,1.0f,0.0f);						// Set The Color To Green
-	glVertex3f( 1.0f, 1.0f,-1.0f);					// Top Right Of The Quad (Top)
-	glVertex3f(-1.0f, 1.0f,-1.0f);					// Top Left Of The Quad (Top)
-	glVertex3f(-1.0f, 1.0f, 1.0f);					// Bottom Left Of The Quad (Top)
-	glVertex3f( 1.0f, 1.0f, 1.0f);					// Bottom Right Of The Quad (Top)
-	glColor3f(1.0f,0.5f,0.0f);						// Set The Color To Orange
-	glVertex3f( 1.0f,-1.0f, 1.0f);					// Top Right Of The Quad (Bottom)
-	glVertex3f(-1.0f,-1.0f, 1.0f);					// Top Left Of The Quad (Bottom)
-	glVertex3f(-1.0f,-1.0f,-1.0f);					// Bottom Left Of The Quad (Bottom)
-	glVertex3f( 1.0f,-1.0f,-1.0f);					// Bottom Right Of The Quad (Bottom)
-	glColor3f(1.0f,0.0f,0.0f);						// Set The Color To Red
-	glVertex3f( 1.0f, 1.0f, 1.0f);					// Top Right Of The Quad (Front)
-	glVertex3f(-1.0f, 1.0f, 1.0f);					// Top Left Of The Quad (Front)
-	glVertex3f(-1.0f,-1.0f, 1.0f);					// Bottom Left Of The Quad (Front)
-	glVertex3f( 1.0f,-1.0f, 1.0f);					// Bottom Right Of The Quad (Front)
-	glColor3f(1.0f,1.0f,0.0f);						// Set The Color To Yellow
-	glVertex3f( 1.0f,-1.0f,-1.0f);					// Top Right Of The Quad (Back)
-	glVertex3f(-1.0f,-1.0f,-1.0f);					// Top Left Of The Quad (Back)
-	glVertex3f(-1.0f, 1.0f,-1.0f);					// Bottom Left Of The Quad (Back)
-	glVertex3f( 1.0f, 1.0f,-1.0f);					// Bottom Right Of The Quad (Back)
-	glColor3f(0.0f,0.0f,1.0f);						// Set The Color To Blue
-	glVertex3f(-1.0f, 1.0f, 1.0f);					// Top Right Of The Quad (Left)
-	glVertex3f(-1.0f, 1.0f,-1.0f);					// Top Left Of The Quad (Left)
-	glVertex3f(-1.0f,-1.0f,-1.0f);					// Bottom Left Of The Quad (Left)
-	glVertex3f(-1.0f,-1.0f, 1.0f);					// Bottom Right Of The Quad (Left)
-	glColor3f(1.0f,0.0f,1.0f);						// Set The Color To Violet
-	glVertex3f( 1.0f, 1.0f,-1.0f);					// Top Right Of The Quad (Right)
-	glVertex3f( 1.0f, 1.0f, 1.0f);					// Top Left Of The Quad (Right)
-	glVertex3f( 1.0f,-1.0f, 1.0f);					// Bottom Left Of The Quad (Right)
-	glVertex3f( 1.0f,-1.0f,-1.0f);					// Bottom Right Of The Quad (Right)
-	glEnd();											// Done Drawing The Quad
+	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
+		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Right Of The Quad (Top)
+	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*ThreadSkeleton._3dPoint[11].y,
+		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Left Of The Quad (Top)
+	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
+		zScale*ThreadSkeleton._3dPoint[11].z);					// Bottom Left Of The Quad (Top)
+	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
+		zScale*ThreadSkeleton._3dPoint[11].z);
+	glEnd();
 
 	rtri+=0.6f;											// Increase The Rotation Variable For The Triangle ( NEW )
 	rquad-=0.15f;										// Decrease The Rotation Variable For The Quad ( NEW )
@@ -463,7 +489,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 	int width = 640;
 	int maxDepth;
 	IplImage* depthImage = cvCreateImage(cvSize(640,480),8,1);
-	cvNamedWindow("dfd",1);
+	cvNamedWindow("Capturing",1);
 	m_pFrameBits = new USHORT[640*480];
 	RECVPARAM *pRecvParam;
 	pRecvParam = new RECVPARAM;
@@ -532,7 +558,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 				}
 			}
 			//cvSaveImage("dfd.jpg",depthImage);
-			cvShowImage("dfd",depthImage);
+			cvShowImage("Capturing",depthImage);
 
 			//////////////////////////////////////////////////////////////////////////
 
@@ -569,7 +595,28 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 DWORD WINAPI RecvProc(LPVOID lpParameter)
 {
 	m_pKinect.init(0,0,480,640);
-	m_pKinect.singleCaptureThread();
+	while (WaitForSingleObject(m_pKinect.hNextFrame, INFINITE) == WAIT_OBJECT_0)
+	{
+		m_pKinect.queryFrame();
+		//float ahand = m_pKinect.mSkeleton._3dPoint[7].x;
+
+		int count = 0;
+		for (int i=0; i<480; i++)
+		{
+			for (int j=0; j<640; j++)
+			{
+				*(ThreadFrameBits+count) = (m_pKinect.mDepth).at<USHORT>(i,j);
+				count++;
+			}
+		}
+
+		ThreadSkeleton = m_pKinect.mSkeleton;
+		
+// 		m_pKinect.mDepth;
+// 		m_pKinect.mRgb;
+	}
+	
+	//m_pKinect.singleCaptureThread();
 	return 0;
 }
 
