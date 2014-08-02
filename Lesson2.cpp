@@ -21,24 +21,45 @@ bool	fullscreen=TRUE;	// Fullscreen Flag Set To Fullscreen Mode By Default
 
 // GLfloat	rtri;				// Angle For The Triangle ( NEW )
 // GLfloat	rquad;				// Angle For The Quad ( NEW )
-float  m_rotate[3][5];
+float  m_rotate[3][5];         //Control the shape of the hand.
 
 //The data exchanged between two threads.
 USHORT*         ThreadFrameBits = new USHORT[640*480];  //raw data
 SLR_ST_Skeleton ThreadSkeleton;
-Mat             ThreadRGB;
+//Mat             ThreadRGB;
+IplImage*       ThreadRGBImage = cvCreateImage(cvSize(640,480),8,3);
 vector<CvPoint3D32f>    LineTrack;
 
 
 HANDLE hThread;
 static DWORD WINAPI RecvProc(LPVOID lpParameter);
 LRESULT	CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);	// Declaration For WndProc
+#define MAX_CHAR 128
 
 struct RECVPARAM
 {
 	bool kinectStart;
 	int a;
 };
+
+void drawString(const char* str) {
+	static int isFirstCall = 1;
+	static GLuint lists;
+
+	if( isFirstCall ) { // 如果是第一次调用，执行初始化
+		// 为每一个ASCII字符产生一个显示列表
+		isFirstCall = 0;
+
+		// 申请MAX_CHAR个连续的显示列表编号
+		lists = glGenLists(MAX_CHAR);
+
+		// 把每个字符的绘制命令都装到对应的显示列表中
+		wglUseFontBitmaps(wglGetCurrentDC(), 0, MAX_CHAR, lists);
+	}
+	// 调用每个字符对应的显示列表，绘制每个字符
+	for(; *str!='\0'; ++str)
+		glCallList(lists + *str);
+}
 
 bool emptyFrameTest(USHORT* data)
 {
@@ -327,9 +348,13 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
 
 	DrawBackground();
+
+	glLoadIdentity();									// Reset The Current Modelview Matrix
+	glTranslatef(0.0f,0.0f,-3.0f);
+	glColor3f(1.0f, 1.0f, 0.0f);
+	glRasterPos2f(-1.0f, -1.0f);
+	drawString("Hello, World!");
 	
-
-
 	CvPoint3D32f temp;
 	temp.x = ThreadSkeleton._3dPoint[11].x;
 	temp.y = ThreadSkeleton._3dPoint[11].y;
@@ -343,19 +368,10 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	float zScale = 3;
 	glLoadIdentity();									// Reset The Current Modelview Matrix
 	glTranslatef(0.0f,0.0f,-7.0f);	
+	glColor3f(1.0f, 1.0f, 1.0f);
 	HandDisplay(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
 		zScale*ThreadSkeleton._3dPoint[11].z);
-// 	glBegin(GL_QUADS);									// Draw A Quad
-// 	glColor3f(0.0f,1.0f,0.0f);						// Set The Color To Green
-// 	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
-// 		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Right Of The Quad (Top)
-// 	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*ThreadSkeleton._3dPoint[11].y,
-// 		zScale*ThreadSkeleton._3dPoint[11].z);					// Top Left Of The Quad (Top)
-// 	glVertex3f(xScale*(ThreadSkeleton._3dPoint[11].x-0.1f), yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
-// 		zScale*ThreadSkeleton._3dPoint[11].z);					// Bottom Left Of The Quad (Top)
-// 	glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*(ThreadSkeleton._3dPoint[11].y-0.1f),
-// 		zScale*ThreadSkeleton._3dPoint[11].z);
-// 	glEnd();
+
 
 	glLoadIdentity();									// Reset The Current Modelview Matrix
 	glTranslatef(0.0f,0.0f,-7.0f);	
@@ -720,7 +736,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 		else										// If There Are No Messages
 		{
 			//////////////////////////////////////////////////////////////////////////
-			maxDepth = 0;
+				//Check if it is an empty frame.
 			if(!emptyFrameTest(ThreadFrameBits))
 			{
 				for (j=0; j<480*640; j++)
@@ -729,6 +745,8 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 				}
 
 			}
+				//Obtain the maximun depth value.
+			maxDepth = 0;
 			for (j=0; j<height; j++)
 			{
 				for (i=0; i<width; i++)
@@ -739,7 +757,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 					}
 				}
 			}
-
+				//Normalize the depth for showing.
 			for (j=0; j<height; j++)
 			{
 				uchar* src_ptr_back = (uchar*)(depthImage->imageData + j*depthImage->widthStep);
@@ -748,11 +766,12 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 					src_ptr_back[i] = (*(m_pFrameBits+width*j+i))*255/(maxDepth+1);
 				}
 			}
-			//cvSaveImage("dfd.jpg",depthImage);
-			cvShowImage("Capturing",depthImage);
+			
+				//Show depth or rgb images.
+			//cvShowImage("Capturing",depthImage);
+			cvShowImage("Capturing",ThreadRGBImage);
 
 			//////////////////////////////////////////////////////////////////////////
-
 			// Draw The Scene.  Watch For ESC Key And Quit Messages From DrawGLScene()
 			if ((active && !DrawGLScene()) || keys[VK_ESCAPE])	// Active?  Was There A Quit Received?
 			{
@@ -768,7 +787,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 				keys[VK_F1]=FALSE;					// If So Make Key FALSE
 				KillGLWindow();						// Kill Our Current Window
 				fullscreen=!fullscreen;				// Toggle Fullscreen / Windowed Mode
-				// Recreate Our OpenGL Window
+					// Recreate Our OpenGL Window
 				if (!CreateGLWindow("NeHe's First Polygon Tutorial",640,480,16,fullscreen))
 				{
 					return 0;						// Quit If Window Was Not Created
@@ -778,7 +797,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 	}
 
 
-	// Shutdown
+		// Shutdown
 	KillGLWindow();									// Kill The Window
 	return (msg.wParam);							// Exit The Program
 }
@@ -789,8 +808,8 @@ DWORD WINAPI RecvProc(LPVOID lpParameter)
 	while (WaitForSingleObject(m_pKinect.hNextFrame, INFINITE) == WAIT_OBJECT_0)
 	{
 		m_pKinect.queryFrame();
-		//float ahand = m_pKinect.mSkeleton._3dPoint[7].x;
 
+			//Depth image
 		int count = 0;
 		for (int i=0; i<480; i++)
 		{
@@ -801,13 +820,26 @@ DWORD WINAPI RecvProc(LPVOID lpParameter)
 			}
 		}
 
+			//Skeleton image
 		ThreadSkeleton = m_pKinect.mSkeleton;
+
+			//RGB image
+		if ((m_pKinect.mRgb).data != NULL)
+		{
+			for (int i=0; i<480; i++)
+			{
+				uchar* src_rgbimage = (uchar*)(ThreadRGBImage->imageData + i*ThreadRGBImage->widthStep);
+				for (int j=0; j<640; j++)
+				{
+					src_rgbimage[3*j+0] = (m_pKinect.mRgb).at<uchar>(i,3*j+0);
+					src_rgbimage[3*j+1] = (m_pKinect.mRgb).at<uchar>(i,3*j+1);
+					src_rgbimage[3*j+2] = (m_pKinect.mRgb).at<uchar>(i,3*j+2);
+				}
+			}
+		}
 		
-// 		m_pKinect.mDepth;
-// 		m_pKinect.mRgb;
 	}
 	
-	//m_pKinect.singleCaptureThread();
 	return 0;
 }
 
