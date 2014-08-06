@@ -6,8 +6,19 @@
 #include "NuiApi.h"
 #include "opencv2/opencv.hpp"
 #include "msKinect.h"
+#include "F.h"
 
 MsKinect m_pKinect;
+#define HandSize 64
+vector<double> HOG_palm_right;
+vector<double> HOG_palm_left;
+vector<double> HOG_fist_right;
+vector<double> HOG_fist_left;
+int statesIndicator[2];   //channel: 0: left. 1: right      
+                        //value: 1: palm. 0: fist. -1: other.
+vector<int> hiddenState[2];
+int duration = 60;
+
 
 
 HDC			hDC=NULL;		// Private GDI Device Context
@@ -22,6 +33,9 @@ bool	fullscreen=TRUE;	// Fullscreen Flag Set To Fullscreen Mode By Default
 // GLfloat	rtri;				// Angle For The Triangle ( NEW )
 // GLfloat	rquad;				// Angle For The Quad ( NEW )
 float  m_rotate[3][5];         //Control the shape of the hand.
+GLfloat Xrotate;
+GLfloat Yrotate;
+GLfloat Zrotate;
 
 //The data exchanged between two threads.
 USHORT*         ThreadFrameBits = new USHORT[640*480];  //raw data
@@ -343,57 +357,82 @@ void HandDisplay(float x,float y, float z)
 
 } 
 
-int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
+int DrawGLScene(GLvoid)									
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
 
+	glLoadIdentity();
+	glTranslatef(0.0f,0.0f,-7.0f);
 	DrawBackground();
 
-	glLoadIdentity();									// Reset The Current Modelview Matrix
+	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-3.0f);
 	glColor3f(1.0f, 1.0f, 0.0f);
 	glRasterPos2f(-1.0f, -1.0f);
 	drawString("Hello, World!");
 	
+
+	if (statesIndicator[0] == -1 && statesIndicator[1] == -1 && !LineTrack.empty())
+	{
+		//LineTrack.clear();
+		Yrotate += 0.6f;
+	}
+
+
 	CvPoint3D32f temp;
 	temp.x = ThreadSkeleton._3dPoint[11].x;
 	temp.y = ThreadSkeleton._3dPoint[11].y;
 	temp.z = ThreadSkeleton._3dPoint[11].z;
-	LineTrack.push_back(temp);
+	if (statesIndicator[1] == 0)
+	{
+		LineTrack.push_back(temp);
+	}
+	
 
 
-
+		//Display the hand
 	float xScale = 2.5;
 	float yScale = 2.5;
 	float zScale = 3;
-	glLoadIdentity();									// Reset The Current Modelview Matrix
+	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-7.0f);	
 	glColor3f(1.0f, 1.0f, 1.0f);
 	HandDisplay(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
 		zScale*ThreadSkeleton._3dPoint[11].z);
 
-
-	glLoadIdentity();									// Reset The Current Modelview Matrix
-	glTranslatef(0.0f,0.0f,-7.0f);	
-	glPointSize(5.0f);
-	glBegin(GL_POINTS);									// Draw A Quad
-	glColor3f(1.0f,0.0f,0.0f);
-	for (int i=0; i<LineTrack.size(); i++)
+	if (LineTrack.size()>0)
 	{
-		glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
-	}
-	glEnd();
+		glLoadIdentity();									
+		glTranslatef(0.0f,0.0f,-7.0f);
+		glPointSize(25.0f);
+		glBegin(GL_POINTS);
+		glVertex3f(0.0f, 0.0f, 0.0f);
+		glEnd();
 
-	glLoadIdentity();									// Reset The Current Modelview Matrix
-	glTranslatef(0.0f,0.0f,-7.0f);	
-	glBegin(GL_LINES);									// Draw A Quad
-	glColor3f(1.0f,0.0f,0.0f);
-	for (int i=0; i<LineTrack.size()-1; i++)
-	{
-		glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
-		glVertex3f(xScale*LineTrack[i+1].x, yScale*LineTrack[i+1].y, zScale*LineTrack[i+1].z);
+		glLoadIdentity();								
+		glTranslatef(0.0f,0.0f,-7.0f);
+		glRotatef(Yrotate,0,1,0);
+		glPointSize(5.0f);
+		glBegin(GL_POINTS);								
+		glColor3f(1.0f,0.0f,0.0f);
+		for (int i=0; i<LineTrack.size(); i++)
+		{
+			glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
+		}
+		glEnd();
+
+		glLoadIdentity();									// Reset The Current Modelview Matrix
+		glTranslatef(0.0f,0.0f,-7.0f);	
+		glRotatef(Yrotate,0,1,0);
+		glBegin(GL_LINES);									// Draw A Quad
+		glColor3f(1.0f,0.0f,0.0f);
+		for (int i=0; i<LineTrack.size()-1; i++)
+		{
+			glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
+			glVertex3f(xScale*LineTrack[i+1].x, yScale*LineTrack[i+1].y, zScale*LineTrack[i+1].z);
+		}
+		glEnd();
 	}
-	glEnd();
 
 // 	rtri+=0.6f;											// Increase The Rotation Variable For The Triangle ( NEW )
 // 	rquad-=0.15f;										// Decrease The Rotation Variable For The Quad ( NEW )
@@ -674,6 +713,280 @@ LRESULT CALLBACK WndProc(	HWND	hWnd,			// Handle For This Window
 	return DefWindowProc(hWnd,uMsg,wParam,lParam);
 }
 
+IplImage *Resize(IplImage *_img)
+{
+	IplImage *_dst=cvCreateImage(cvSize(HandSize,HandSize),_img->depth,_img->nChannels);
+	cvResize(_img,_dst);
+	return _dst;
+}
+
+bool GetHOGHistogram_Patch(IplImage *img,vector<double> &hog_hist)
+{
+	HOGDescriptor *hog=new HOGDescriptor(cvSize(HandSize,HandSize),cvSize(16,16),cvSize(8,8),cvSize(8,8),9);
+	//HOGDescriptor *hog=new HOGDescriptor(cvSize(SIZE,SIZE),cvSize(32,32),cvSize(16,16),cvSize(16,16),9);
+	//(cvSize(SIZE,SIZE),cvSize(16,16),cvSize(8,8),cvSize(8,8),9)
+	/////////////////////window: 64*64£¬block: 8*8£¬block step:4*4£¬cell: 4*4
+	cvNormalize(img,img,255,0,CV_MINMAX,0); //Add by Hanjie Wang. 2013-03.
+	//LBP(img,img);
+	Mat handMat(img);
+
+	vector<float> *descriptors = new std::vector<float>();
+
+	hog->compute(handMat, *descriptors,Size(0,0), Size(0,0));
+	////////////////////window: 0*0
+	double total=0;
+	int i;
+	for(i=0;i<descriptors->size();i++)
+		total+=abs((*descriptors)[i]);
+	//	total=sqrt(total);
+	for(i=0;i<descriptors->size();i++)
+		hog_hist.push_back((*descriptors)[i]/total);
+	return true; 
+}
+
+double Histogram(vector<double>vec1,vector<double>vec2)
+{
+	double mat_score=0.0;//mat_score: similarity
+	int i;
+	int _Size=vec1.size();
+	for(i=0;i<_Size;i++)
+	{
+		mat_score+=vec1[i]<vec2[i] ? vec1[i] : vec2[i];
+	}
+	return  mat_score;
+}
+
+void HandPostureInitial()
+{
+	IplImage* left_palm = cvLoadImage("left_palm.jpg", 0);
+	IplImage* left_fist = cvLoadImage("left_fist.jpg", 0);
+	IplImage* right_palm = cvLoadImage("right_plam.jpg", 0);
+	IplImage* right_fist = cvLoadImage("right_fist.jpg", 0);
+
+	left_palm = Resize(left_palm);
+	left_fist = Resize(left_fist);
+	right_palm = Resize(right_palm);
+	right_fist = Resize(right_fist);
+
+	GetHOGHistogram_Patch(left_palm, HOG_palm_left);
+	GetHOGHistogram_Patch(left_fist, HOG_fist_left);
+	GetHOGHistogram_Patch(right_palm, HOG_palm_right);
+	GetHOGHistogram_Patch(right_fist, HOG_fist_right);
+
+	for (int i=0; i<2; i++)
+	{
+		statesIndicator[i] = -1; 
+		//changeDur[i] = 0;
+	}
+}
+
+void HandPostureRecognition(IplImage* depthImage, IplImage* rgbImage, SLR_ST_Skeleton skeleton,
+	int HandPostates[])
+{
+		//Background segmentation
+	float aveDepthHead = 0;
+	CvPoint headPosition;
+	headPosition.x = skeleton._2dPoint[3].x>10?skeleton._2dPoint[3].x:10;
+	headPosition.y = skeleton._2dPoint[3].y>10?skeleton._2dPoint[3].y:10;
+	cvDrawCircle(depthImage,headPosition,20,cvScalar(255,0,0),2,8,0);
+	for (int i=headPosition.x-10; i<headPosition.x+10; i++)
+	{
+		uchar* src_ptr_back = (uchar*)(depthImage->imageData + i*depthImage->widthStep);
+		for (int j=headPosition.y-10; j<headPosition.y+10; j++)
+		{
+			aveDepthHead += (int)src_ptr_back[j];
+		}
+	}
+	aveDepthHead = (int)(aveDepthHead/(20*20));
+
+	for (int i=0; i<480; i++)
+	{
+		uchar* src_ptr_back = (uchar*)(depthImage->imageData + i*depthImage->widthStep);
+		for (int j=0; j<640; j++)
+		{
+			if (src_ptr_back[j]< aveDepthHead+5 || src_ptr_back[j] >= 250)
+			{
+				src_ptr_back[j] = 0;
+			}
+		}
+	}
+
+	CvFont font;
+	double hscale = 1.0;
+	double vscale = 1.0;
+	int linewidth = 2;
+	cvInitFont(&font,CV_FONT_HERSHEY_SIMPLEX | CV_FONT_ITALIC,hscale,vscale,0,linewidth);
+	char tesxt[20];
+	itoa(aveDepthHead,tesxt,20);
+	cvPutText(depthImage, tesxt, headPosition, &font,cvScalar(255,0,0));
+
+
+		//Draw a line.
+	int lineHeight = 350;
+	CvPoint LineP1;
+	LineP1.x = 0;
+	LineP1.y = lineHeight;
+	CvPoint LineP2;
+	LineP2.x = 640;
+	LineP2.y = lineHeight;
+	cvLine(depthImage, LineP1, LineP2, cvScalar(255,255,255),2,8,0);
+
+
+	int handHeight = 35;
+	int handWidth = 30;
+		//Right hand bounding box
+	CvPoint p1;
+	p1.x = skeleton._2dPoint[11].x-handWidth;
+	p1.y = skeleton._2dPoint[11].y-handHeight;
+	CvPoint p2;
+	p2.x = skeleton._2dPoint[11].x+handWidth;
+	p2.y = skeleton._2dPoint[11].y+handHeight;
+	cvRectangle(depthImage,p1,p2,cvScalar(255,255,255),2,8,0);
+	CvRect RightHandRoi;
+	RightHandRoi.x = p1.x;
+	RightHandRoi.y = p1.y;
+	RightHandRoi.width = 2*handWidth;
+	RightHandRoi.height = 2*handHeight;
+	cvSetImageROI(depthImage,RightHandRoi);
+	IplImage* rightHandImage = cvCreateImage(cvSize(HandSize,HandSize),8,1);
+	cvResize(depthImage,rightHandImage,1);
+	//depthImage = Resize(depthImage);
+	vector<double> HOG_rightHand;
+	GetHOGHistogram_Patch(rightHandImage, HOG_rightHand);
+	if (skeleton._2dPoint[11].y > lineHeight)
+	{
+		hiddenState[1].push_back(-1);
+		//statesIndicator[1] = -1;
+	}
+	else
+	{
+		double score_palm = Histogram(HOG_rightHand, HOG_palm_right);
+		double score_fist = Histogram(HOG_rightHand, HOG_fist_right);
+		if (score_fist > score_palm)
+		{
+			hiddenState[1].push_back(0);
+			//statesIndicator[1] = 0;
+		}
+		else
+		{
+			hiddenState[1].push_back(1);
+			//statesIndicator[1] = 1;
+		}
+
+	}
+	//cvSaveImage("right.jpg",rightHandImage);
+	cvResetImageROI(depthImage);
+	if (hiddenState[1].size()>duration)
+	{
+		vector<int>::iterator vi=hiddenState[1].begin();
+		hiddenState[1].erase(vi);
+	}
+	int times_right_none = 0;
+	int times_right_palm = 0;
+	int times_right_fist = 0;
+	for (int i=0; i<hiddenState[1].size(); i++)
+	{
+		if (hiddenState[1][i] == -1) times_right_none++;
+		if (hiddenState[1][i] == 0) times_right_fist++;
+		if (hiddenState[1][i] == 1) times_right_palm++;
+	}
+	if (times_right_none>times_right_fist && times_right_none>times_right_palm) statesIndicator[1] = -1;
+	if (times_right_fist>times_right_none && times_right_fist>times_right_palm) statesIndicator[1] = 0;
+	if (times_right_palm>times_right_fist && times_right_palm>times_right_none) statesIndicator[1] = 1;
+	if (statesIndicator[1] == -1)
+	{
+		cvPutText(depthImage, "None", cvPoint(400, lineHeight), &font,cvScalar(255,255,255));
+	}
+	else if (statesIndicator[1] == 0)
+	{
+		cvPutText(depthImage, "Fist", cvPoint(400, lineHeight), &font,cvScalar(255,255,255));
+	}
+	else if (statesIndicator[1] == 1)
+	{
+		cvPutText(depthImage, "Palm", cvPoint(400, lineHeight), &font,cvScalar(255,255,255));
+	}
+
+
+		//Left hand bounding box
+	CvPoint p3;
+	p3.x = skeleton._2dPoint[7].x-handWidth;
+	p3.y = skeleton._2dPoint[7].y-handHeight;
+	CvPoint p4;
+	p4.x = skeleton._2dPoint[7].x+handWidth;
+	p4.y = skeleton._2dPoint[7].y+handHeight;
+	cvRectangle(depthImage,p3,p4,cvScalar(255,255,255),2,8,0);
+	CvRect LeftHandRoi;
+	LeftHandRoi.x = p3.x;
+	LeftHandRoi.y = p3.y;
+	LeftHandRoi.width = 2*handWidth;
+	LeftHandRoi.height = 2*handHeight;
+	cvSetImageROI(depthImage,LeftHandRoi);
+	//depthImage = Resize(depthImage);
+	IplImage* leftHandImage = cvCreateImage(cvSize(HandSize,HandSize),8,1);
+	cvResize(depthImage,leftHandImage,1);
+	//cvSaveImage("left.jpg",leftHandImage);
+	vector<double> HOG_leftHand;
+	GetHOGHistogram_Patch(leftHandImage, HOG_leftHand);
+	if (skeleton._2dPoint[7].y > lineHeight)
+	{
+		hiddenState[0].push_back(-1);
+		//statesIndicator[0] = -1;
+	}
+	else
+	{
+		double score_palm = Histogram(HOG_leftHand, HOG_palm_left);
+		double score_fist = Histogram(HOG_leftHand, HOG_fist_left);
+		if (score_fist > score_palm)
+		{
+			hiddenState[0].push_back(0);
+			//statesIndicator[0] = 0;
+		}
+		else
+		{
+			hiddenState[0].push_back(1);
+			//statesIndicator[0] = 1;
+		}
+
+	}
+	cvResetImageROI(depthImage);
+	if (hiddenState[0].size()>duration)
+	{
+		vector<int>::iterator vi=hiddenState[0].begin();
+		hiddenState[0].erase(vi);
+	}
+	int times_left_none = 0;
+	int times_left_palm = 0;
+	int times_left_fist = 0;
+	for (int i=0; i<hiddenState[0].size(); i++)
+	{
+		if (hiddenState[0][i] == -1) times_left_none++;
+		if (hiddenState[0][i] == 0) times_left_fist++;
+		if (hiddenState[0][i] == 1) times_left_palm++;
+	}
+	if (times_left_none>times_left_fist && times_left_none>times_left_palm) statesIndicator[0] = -1;
+	if (times_left_fist>times_left_none && times_left_fist>times_left_palm) statesIndicator[0] = 0;
+	if (times_left_palm>times_left_fist && times_left_palm>times_left_none) statesIndicator[0] = 1;
+	if (statesIndicator[0] == -1)
+	{
+		cvPutText(depthImage, "None", cvPoint(100, lineHeight), &font,cvScalar(255,255,255));
+	}
+	else if (statesIndicator[0] == 0)
+	{
+		cvPutText(depthImage, "Fist", cvPoint(100, lineHeight), &font,cvScalar(255,255,255));
+	}
+	else if (statesIndicator[0] == 1)
+	{
+		cvPutText(depthImage, "Palm", cvPoint(100, lineHeight), &font,cvScalar(255,255,255));
+	}
+
+
+	cvReleaseImage(&leftHandImage);
+	cvReleaseImage(&rightHandImage);
+
+}
+
+
+
 int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 					HINSTANCE	hPrevInstance,		// Previous Instance
 					LPSTR		lpCmdLine,			// Command Line Parameters
@@ -693,7 +1006,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 	RECVPARAM *pRecvParam;
 	pRecvParam = new RECVPARAM;
 	//pRecvParam->kinectStart = m_bStartKinect;
-
+	HandPostureInitial();
 	hThread = CreateThread(NULL, 0, RecvProc, (LPVOID)pRecvParam, 0, NULL);
 	CloseHandle(hThread);
 
@@ -763,14 +1076,43 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 				uchar* src_ptr_back = (uchar*)(depthImage->imageData + j*depthImage->widthStep);
 				for (i=0; i<width; i++)
 				{
-					src_ptr_back[i] = (*(m_pFrameBits+width*j+i))*255/(maxDepth+1);
+					src_ptr_back[i] = 255 - (*(m_pFrameBits+width*j+i))*255/(maxDepth+1);
+				}
+			}
+
+			int HandPoStates[4];
+			for (int i=0; i<4; i++)
+				HandPoStates[i] = 0;
+			HandPostureRecognition(depthImage, ThreadRGBImage, ThreadSkeleton, HandPoStates);
+				//Show depth or rgb images.
+			cvShowImage("Capturing",depthImage);
+			//cvShowImage("Capturing",ThreadRGBImage);
+
+
+
+			//////////////////////////////////////////////////////////////////////////
+			//Change the shape of hand in openGL
+			if (statesIndicator[1] == 0)
+			{
+				for (int i=0; i<3; i++)
+				{
+					for (int j=0; j<5; j++)
+					{
+						m_rotate[i][j] = 30;
+					}
+				}
+			}
+			else if (statesIndicator[1] == 1)
+			{
+				for (int i=0; i<3; i++)
+				{
+					for (int j=0; j<5; j++)
+					{
+						m_rotate[i][j] = 0;
+					}
 				}
 			}
 			
-				//Show depth or rgb images.
-			//cvShowImage("Capturing",depthImage);
-			cvShowImage("Capturing",ThreadRGBImage);
-
 			//////////////////////////////////////////////////////////////////////////
 			// Draw The Scene.  Watch For ESC Key And Quit Messages From DrawGLScene()
 			if ((active && !DrawGLScene()) || keys[VK_ESCAPE])	// Active?  Was There A Quit Received?

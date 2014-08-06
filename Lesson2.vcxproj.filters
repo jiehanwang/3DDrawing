@@ -30,6 +30,9 @@
     <ClCompile Include="Ini.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="histModelAndDraw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="kinect.h">
@@ -42,6 +45,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Ini.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="F.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

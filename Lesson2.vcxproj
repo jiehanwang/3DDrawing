@@ -134,6 +134,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="depth.cpp" />
+    <ClCompile Include="histModelAndDraw.cpp" />
     <ClCompile Include="Ini.cpp" />
     <ClCompile Include="kinect.cpp" />
     <ClCompile Include="lesson2.cpp" />
@@ -141,6 +142,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="depth.h" />
+    <ClInclude Include="F.h" />
     <ClInclude Include="Ini.h" />
     <ClInclude Include="kinect.h" />
     <ClInclude Include="msKinect.h" />
