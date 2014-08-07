@@ -17,7 +17,7 @@ vector<double> HOG_fist_left;
 int statesIndicator[2];   //channel: 0: left. 1: right      
                         //value: 1: palm. 0: fist. -1: other.
 vector<int> hiddenState[2];
-int duration = 60;
+int duration = 120;
 
 
 
@@ -33,6 +33,7 @@ bool	fullscreen=TRUE;	// Fullscreen Flag Set To Fullscreen Mode By Default
 // GLfloat	rtri;				// Angle For The Triangle ( NEW )
 // GLfloat	rquad;				// Angle For The Quad ( NEW )
 float  m_rotate[3][5];         //Control the shape of the hand.
+float  m_rotate_left[3][5];         //Control the shape of the hand.
 GLfloat Xrotate;
 GLfloat Yrotate;
 GLfloat Zrotate;
@@ -121,7 +122,7 @@ int InitGL(GLvoid)										// All Setup For OpenGL Goes Here
 
 void DrawBackground()
 {
-	GLfloat dep=4.0f;
+	GLfloat dep=5.0f;
 	GLfloat edg1=3.0f;
 	GLfloat edg2=4.0f;
 	GLfloat i=-dep;
@@ -130,6 +131,7 @@ void DrawBackground()
 	//if (demoStyle == 1)
 	{
 		glPushMatrix();
+		glLineWidth(1);
 		glBegin(GL_LINES);
 		glColor3f(1.0,1.0,1.0);
 		while(i<=dep)
@@ -145,7 +147,7 @@ void DrawBackground()
 			// Right face2
 			glVertex3f(edg2, -edg1,  i);
 			glVertex3f(edg2,  edg1,  i);
-			i+=0.4f;
+			i+=0.6f;
 		}
 
 		while(j<=edg1)
@@ -159,7 +161,7 @@ void DrawBackground()
 			// Back Face1
 			glVertex3f(-edg2,  j, -dep);
 			glVertex3f( edg2,  j, -dep);	
-			j+=0.4f;
+			j+=0.6f;
 		}
 
 		while (k<=edg2)
@@ -173,7 +175,7 @@ void DrawBackground()
 			// Back Face2
 			glVertex3f(k, -edg1, -dep);
 			glVertex3f(k,  edg1, -dep);
-			k+=0.4f;
+			k+=0.6f;
 		}
 
 		glEnd();
@@ -357,24 +359,228 @@ void HandDisplay(float x,float y, float z)
 
 } 
 
+void DrawMiddleFinger_left(float x, float y, float z)
+{
+	float scale = 40;
+	glTranslatef(x, y, z);//移动到指定位置
+
+	glPushMatrix();
+	glRotatef((float)m_rotate_left[0][2], 1.0, 0.0, 0.0);//控制旋转第一个关节
+
+	glPushMatrix();
+
+	glPushMatrix();
+	glutSolidSphere(1.5/scale, 8, 8);//绘制中指的第一个关节，球A
+	glPopMatrix();
+	glRotatef(-90.0, 1.0, 0.0, 0.0);
+	glPushMatrix();
+	GLUquadricObj *middFinger1;
+	middFinger1=gluNewQuadric();
+	gluQuadricDrawStyle(middFinger1,GLU_FILL);
+	gluCylinder(middFinger1, 1.25/scale, 1.2/scale, 4/scale, 8, 8);//中指的第一个指节，圆柱1
+	glPopMatrix();
+	glPopMatrix();//第一个指节绘制完毕
+
+	glTranslatef(0.0,4/scale,0.0);
+	glRotatef((GLfloat)m_rotate_left[1][2], 1.0, 0.0, 0.0);//控制旋转第二个指节
+	glTranslatef(0.0, -4/scale, 0.0);
+	glPushMatrix();
+
+	glPushMatrix();
+	glTranslatef(0.0, 4.1/scale, 0.0);
+	glutSolidSphere(1.25/scale, 8, 8);//绘制中指的第二个关节，球B
+	glTranslatef(0.0, -4.1/scale, 0.0);
+	glPopMatrix();
+
+	glTranslatef(0.0, 4.2/scale, 0.0);
+	glRotatef(-90, 1.0, 0.0, 0.0);
+	glPushMatrix();
+	GLUquadricObj *middFinger2;
+	middFinger2=gluNewQuadric();
+	gluQuadricDrawStyle(middFinger2, GLU_FILL);
+	gluCylinder(middFinger2, 1.2/scale, 1.2/scale, 4/scale, 8, 8);//中指的第二个指节，圆柱2
+	glPopMatrix(); 
+	glTranslatef(0.0, -4.2/scale, 0.0);
+	glPopMatrix();//第二节手指绘制完毕
+
+	glTranslatef(0.0, 8.2/scale, 0.0); //绘制第三指节，即最后一个指节！
+	glRotatef((GLfloat)m_rotate_left[2][2], 1.0, 0.0, 0.0);//控制旋转第三个指节
+	glTranslatef(0.0, -8.2/scale, 0.0);
+	glPushMatrix();
+
+	glTranslatef(0.0, 8.0/scale, 0.0);	 
+	glPushMatrix();
+	glutSolidSphere(1.25/scale, 8, 8);//绘制中指的第三个关节，球C  
+	glPopMatrix();   
+	glTranslatef(0.0, -8.0/scale, 0.0); 
+
+	glTranslatef(0.0, 8.1/scale, 0.0);
+	glRotatef(-90, 1.0, 0.0, 0.0);	
+	glPushMatrix();	  
+	GLUquadricObj *middFinger3;
+	middFinger3=gluNewQuadric();
+	gluQuadricDrawStyle(middFinger3, GLU_FILL);
+	gluCylinder(middFinger3, 1.2/scale, 1.2/scale, 4/scale, 8, 8);//中指的第三个指节，圆柱3
+	glPopMatrix();
+	glRotatef(90, 1.0, 0.0, 0.0);
+	glTranslatef(0.0, -8.1/scale, 0.0);
+
+	glTranslatef(0.0, 12.0/scale, 0.0);
+	glPushMatrix();//绘制指尖
+	glutSolidSphere(1.2/scale, 8, 4);//绘制指尖
+	glPopMatrix();
+	glTranslatef(0.0, -12.0/scale, 0.0);
+	glPopMatrix();
+
+	glPopMatrix();
+	gluDeleteQuadric(middFinger1);//删除二次曲面对象
+	gluDeleteQuadric(middFinger2);
+	gluDeleteQuadric(middFinger3);
+}
+
+void DrawPalm_left(float x,float y, float z)
+{
+	float scale = 40;
+	glTranslatef(x, y, z);//将手掌模型移动到指定位置
+	  
+	glPushMatrix();//矩形 的手掌模型案
+	glTranslatef(-0.7/scale, 0.25/scale, 0.0);
+	glScalef(6.0/scale, 7.0/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glTranslatef(0.6/scale, -0.25/scale, 0.0);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(-0.1/scale, -2.95/scale, 0.0);
+	glScalef(5.7/scale, 1.8/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glTranslatef(0.1/scale, 2.95/scale, 0.0);
+	glPopMatrix();
+	
+	glPushMatrix();
+	glTranslatef(0.7/scale, 0.0, 0.0);
+	glScalef(6.0/scale, 5.0/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(2.45/scale, -2.6/scale, 0.0);
+	glRotatef(49.0, 0.0, 0.0, 1.0);	
+	glScalef(1.75/scale, 1.75/scale, 2.5/scale);
+	glutSolidCube(1.0);
+	glTranslatef(-2.45/scale, 2.6/scale, 0.0);
+	glPopMatrix();
+
+	/*glPushMatrix();//方案二：八边形
+	glTranslatef(-0.9, 1.9, 0.0);
+	glScalef(6.5, 4.0, 2.4);
+	glutSolidCube(1.0);
+	glTranslatef(0.9, -1.9, 0.0);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(0.7, 1.75, 0.0);
+	glScalef(6.0, 1.8, 2.4);
+	glutSolidCube(1.0);
+	glPopMatrix();
+	glScalef(1.0, 1.0, 0.5);
+	glPushMatrix();
+	glRotatef(15.0, 0.0, 0.0, 1.0);
+	glTranslatef(-0.3, 0.0, 0.0);
+	glutSolidSphere(4.8, 8, 8);
+	glPopMatrix();*/
+}
+
+void HandDisplay_left(float x,float y, float z)
+{
+	float scale = 40;
+
+	glTranslatef(x, y, z);
+	glRotatef(0,0,1,0);
+	glPushMatrix ();
+		glPushMatrix();//载入手掌
+			glScalef(1.3, 1.3, 0.9);
+			DrawPalm_left(1.0/scale, -4.0/scale, 0.0);
+		glPopMatrix();
+
+		glScalef(0.8, 0.75, 0.8);
+
+		glPushMatrix();//载入中指
+			DrawMiddleFinger_left(0.0, -0.3/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入无名指
+			//DrawRingeFinger(3.2, -0.4, 0.0);
+			DrawMiddleFinger_left(3.2/scale, -0.4/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入食指
+			//DrawForefinger(-3.2, -0.7, 0.0);
+			DrawMiddleFinger_left(-3.2/scale, -0.7/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入小拇指
+			//DrawLittleFinger(6.3, -2.5, 0.0);
+			DrawMiddleFinger_left(6.3/scale, -2.5/scale, 0.0);
+		glPopMatrix();
+
+		glPushMatrix();//载入大拇指
+			glScalef(1.0, 1.1, 1.0);
+			//DrawThumb(-3.0, -11.0, 0.0);
+			DrawMiddleFinger_left(-3.0/scale, -11.0/scale, 0.0);
+		glPopMatrix();
+
+	glPopMatrix ();
+
+} 
+
+void GetRotateCenter(GLfloat* x, GLfloat* y, GLfloat* z)
+{
+	*x = 0.0f; 
+	*y = 0.0f;
+	*z = 0.0f;
+	for (int i=0; i<LineTrack.size(); i++)
+	{
+		*x += LineTrack[i].x;
+		*y += LineTrack[i].y;
+		*z += LineTrack[i].z;
+	}
+
+	*x /= (LineTrack.size() + 0.00001);
+	*y /= (LineTrack.size() + 0.00001);
+	*z /= (LineTrack.size() + 0.00001);
+
+}
+
 int DrawGLScene(GLvoid)									
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
+	GLfloat center_x, center_y, center_z;
+	center_x = 0.0f;
+	center_y = 0.0f;
+	center_z = 0.0f;
 
+	float xScale = 2.5;
+	float yScale = 2.5;
+	float zScale = 3;
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
+	
+		//Draw background.
 	glLoadIdentity();
 	glTranslatef(0.0f,0.0f,-7.0f);
 	DrawBackground();
 
-	glLoadIdentity();									
-	glTranslatef(0.0f,0.0f,-3.0f);
-	glColor3f(1.0f, 1.0f, 0.0f);
-	glRasterPos2f(-1.0f, -1.0f);
-	drawString("Hello, World!");
-	
 
 	if (statesIndicator[0] == -1 && statesIndicator[1] == -1 && !LineTrack.empty())
 	{
-		//LineTrack.clear();
+		if (ThreadSkeleton._3dPoint[11].x < ThreadSkeleton._3dPoint[7].x)
+		{
+			LineTrack.clear();    //This function is really simple and cool. Clear the painting.
+			center_x = 0.0f;
+			center_y = 0.0f;
+			center_z = 0.0f;
+			Yrotate = 0.0f;
+		}
 		Yrotate += 0.6f;
 	}
 
@@ -383,25 +589,38 @@ int DrawGLScene(GLvoid)
 	temp.x = ThreadSkeleton._3dPoint[11].x;
 	temp.y = ThreadSkeleton._3dPoint[11].y;
 	temp.z = ThreadSkeleton._3dPoint[11].z;
-	if (statesIndicator[1] == 0)
+	if (statesIndicator[0] == 1 && statesIndicator[1] != -1)    //暂时用左手控制画笔开关，这样比较稳定。
 	{
 		LineTrack.push_back(temp);
 	}
 	
-
+		//Get the center of the drawing.
+	GetRotateCenter(&center_x, &center_y, &center_z);
+	glLoadIdentity();									
+	glTranslatef(0.0f,0.0f,-3.0f);
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glRasterPos2f(-1.0f, -1.0f);
+	char tempbuf[45];
+	sprintf(tempbuf, "%f, %f, %f", xScale*center_x, yScale*center_y, zScale*center_z);
+	drawString(tempbuf);
 
 		//Display the hand
-	float xScale = 2.5;
-	float yScale = 2.5;
-	float zScale = 3;
 	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-7.0f);	
-	glColor3f(1.0f, 1.0f, 1.0f);
+	glColor3f(1.0f, 1.0f, 0.0f);
 	HandDisplay(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
 		zScale*ThreadSkeleton._3dPoint[11].z);
 
+	glLoadIdentity();									
+	glTranslatef(0.0f,0.0f,-7.0f);	
+	glColor3f(1.0f, 1.0f, 0.0f);
+	HandDisplay_left(xScale*ThreadSkeleton._3dPoint[7].x, yScale*ThreadSkeleton._3dPoint[7].y,
+		zScale*ThreadSkeleton._3dPoint[7].z);
+
+		//Draw the painting.
 	if (LineTrack.size()>0)
 	{
+			//Draw the original point.
 		glLoadIdentity();									
 		glTranslatef(0.0f,0.0f,-7.0f);
 		glPointSize(25.0f);
@@ -411,31 +630,48 @@ int DrawGLScene(GLvoid)
 
 		glLoadIdentity();								
 		glTranslatef(0.0f,0.0f,-7.0f);
-		glRotatef(Yrotate,0,1,0);
+		if (statesIndicator[0] == -1 && statesIndicator[1] == -1)
+		{
+			glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
+			glPointSize(25.0f);
+			glColor3f(0.0f,0.0f,1.0f);
+			glBegin(GL_POINTS);
+			glVertex3f(xScale*center_x,yScale*center_y,zScale*center_z);
+			glEnd();
+			glRotatef(Yrotate,0,1,0);
+		}
+		else
+		{
+			center_x = 0.0f;
+			center_y = 0.0f;
+			center_z = 0.0f;
+		}
 		glPointSize(5.0f);
 		glBegin(GL_POINTS);								
 		glColor3f(1.0f,0.0f,0.0f);
 		for (int i=0; i<LineTrack.size(); i++)
 		{
-			glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
+			glVertex3f(xScale*LineTrack[i].x-xScale*center_x, 
+				yScale*LineTrack[i].y-yScale*center_y, 
+				zScale*LineTrack[i].z-zScale*center_z);
 		}
 		glEnd();
 
-		glLoadIdentity();									// Reset The Current Modelview Matrix
-		glTranslatef(0.0f,0.0f,-7.0f);	
-		glRotatef(Yrotate,0,1,0);
-		glBegin(GL_LINES);									// Draw A Quad
+		glLineWidth(8);
+		glBegin(GL_LINES);									
 		glColor3f(1.0f,0.0f,0.0f);
 		for (int i=0; i<LineTrack.size()-1; i++)
 		{
-			glVertex3f(xScale*LineTrack[i].x, yScale*LineTrack[i].y, zScale*LineTrack[i].z);
-			glVertex3f(xScale*LineTrack[i+1].x, yScale*LineTrack[i+1].y, zScale*LineTrack[i+1].z);
+			glVertex3f(xScale*LineTrack[i].x-xScale*center_x, 
+				yScale*LineTrack[i].y-yScale*center_y, 
+				zScale*LineTrack[i].z-zScale*center_z);
+			glVertex3f(xScale*LineTrack[i+1].x-xScale*center_x, 
+				yScale*LineTrack[i+1].y-yScale*center_y, 
+				zScale*LineTrack[i+1].z-zScale*center_z);
 		}
 		glEnd();
 	}
 
-// 	rtri+=0.6f;											// Increase The Rotation Variable For The Triangle ( NEW )
-// 	rquad-=0.15f;										// Decrease The Rotation Variable For The Quad ( NEW )
 	return TRUE;	
 }
 
@@ -985,7 +1221,51 @@ void HandPostureRecognition(IplImage* depthImage, IplImage* rgbImage, SLR_ST_Ske
 
 }
 
+void handshapeChange()
+{
+	if (statesIndicator[1] == 0)
+	{
+		for (int i=0; i<3; i++)
+		{
+			for (int j=0; j<5; j++)
+			{
+				m_rotate[i][j] = 30;
+			}
+		}
+	}
+	else if (statesIndicator[1] == 1)
+	{
+		for (int i=0; i<3; i++)
+		{
+			for (int j=0; j<5; j++)
+			{
+				m_rotate[i][j] = 0;
+			}
+		}
+	}
 
+
+	if (statesIndicator[0] == 0)
+	{
+		for (int i=0; i<3; i++)
+		{
+			for (int j=0; j<5; j++)
+			{
+				m_rotate_left[i][j] = 30;
+			}
+		}
+	}
+	else if (statesIndicator[0] == 1)
+	{
+		for (int i=0; i<3; i++)
+		{
+			for (int j=0; j<5; j++)
+			{
+				m_rotate_left[i][j] = 0;
+			}
+		}
+	}
+}
 
 int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 					HINSTANCE	hPrevInstance,		// Previous Instance
@@ -1015,6 +1295,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 		for (int j=0; j<5; j++)
 		{
 			m_rotate[i][j] = 40;
+			m_rotate_left[i][j] = 40;
 		}
 	}
 
@@ -1092,26 +1373,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 
 			//////////////////////////////////////////////////////////////////////////
 			//Change the shape of hand in openGL
-			if (statesIndicator[1] == 0)
-			{
-				for (int i=0; i<3; i++)
-				{
-					for (int j=0; j<5; j++)
-					{
-						m_rotate[i][j] = 30;
-					}
-				}
-			}
-			else if (statesIndicator[1] == 1)
-			{
-				for (int i=0; i<3; i++)
-				{
-					for (int j=0; j<5; j++)
-					{
-						m_rotate[i][j] = 0;
-					}
-				}
-			}
+			handshapeChange();
 			
 			//////////////////////////////////////////////////////////////////////////
 			// Draw The Scene.  Watch For ESC Key And Quit Messages From DrawGLScene()
