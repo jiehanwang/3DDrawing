@@ -8,6 +8,10 @@
 #include "msKinect.h"
 #include "F.h"
 
+//一些参数的含义
+// 11: right:  statesIndicator[0]
+// 7: left:  statesIndicator[1]
+
 MsKinect m_pKinect;
 #define HandSize 64
 vector<double> HOG_palm_right;
@@ -16,10 +20,25 @@ vector<double> HOG_fist_right;
 vector<double> HOG_fist_left;
 int statesIndicator[2];   //channel: 0: left. 1: right      
                         //value: 1: palm. 0: fist. -1: other.
+	//For hand rotation
+bool handRotateKey;
+int  handRotateCount;
+int  handRotateDuration = 180;
+GLfloat handRotate_X;
+GLfloat handRotate_Y;
+GLfloat handRotate_Z;
+int firstRotate;
+GLfloat preAngleZ;
+GLfloat preAngleY;
+GLfloat preAngleX;
+GLfloat rzAdd;
+GLfloat ryAdd;
+GLfloat rxAdd;
+// GLfloat spaceRz;
+// GLfloat spaceRy;
+
 vector<int> hiddenState[2];
 int duration = 120;
-
-
 
 HDC			hDC=NULL;		// Private GDI Device Context
 HGLRC		hRC=NULL;		// Permanent Rendering Context
@@ -120,7 +139,7 @@ int InitGL(GLvoid)										// All Setup For OpenGL Goes Here
 	return TRUE;										// Initialization Went OK
 }
 
-void DrawBackground()
+void DrawBackground(bool touch)
 {
 	GLfloat dep=5.0f;
 	GLfloat edg1=3.0f;
@@ -133,7 +152,15 @@ void DrawBackground()
 		glPushMatrix();
 		glLineWidth(1);
 		glBegin(GL_LINES);
-		glColor3f(1.0,1.0,1.0);
+		if (touch)
+		{
+			glColor3f(1.0,1.0,0.0);
+		}
+		else
+		{
+			glColor3f(1.0,1.0,1.0);
+		}
+		
 		while(i<=dep)
 		{		// Top Face1
 			glVertex3f(-edg2,  edg1,  i);
@@ -552,6 +579,54 @@ void GetRotateCenter(GLfloat* x, GLfloat* y, GLfloat* z)
 
 }
 
+void rotateSpace(GLfloat lx,GLfloat ly,GLfloat lz,GLfloat rx,GLfloat ry,GLfloat rz)
+{
+	if (firstRotate==0)
+	{
+		if (rx!=lx)
+		{
+			preAngleZ=((ry-ly)/(rx-lx))*180;
+			preAngleY=((rz-lz)/(rx-lx))*45;
+			preAngleZ=((rz-lz)/(ry-ly))*45;
+		}
+		else
+		{
+			preAngleZ=90;
+			preAngleY=90;
+			preAngleX=90;
+		}
+
+		firstRotate=1;
+		rzAdd=0.0f;
+		ryAdd=0.0f;
+		rxAdd=0.0f;
+	}
+	else if (firstRotate==1)
+	{
+		if (rx!=lx)
+		{
+			rzAdd=((ry-ly)/(rx-lx))*180-preAngleZ;
+			preAngleZ=((ry-ly)/(rx-lx))*180;
+			ryAdd=((rz-lz)/(rx-lx))*45-preAngleY;
+			preAngleY=((rz-lz)/(rx-lx))*45;
+			rxAdd=((rz-lz)/(ry-ly))*45-preAngleX;
+			preAngleX=((rz-lz)/(ry-ly))*45;
+		}
+		else
+		{
+			rzAdd=90-preAngleZ;
+			preAngleZ=90;
+			ryAdd=90-preAngleY;
+			preAngleY=90;
+			rxAdd=90-preAngleX;
+			preAngleX=90;
+		}
+	}
+	handRotate_Z+=10*rzAdd;
+	handRotate_Y-=10*ryAdd; 
+	handRotate_X-=10*ryAdd;
+}
+
 int DrawGLScene(GLvoid)									
 {
 	GLfloat center_x, center_y, center_z;
@@ -565,10 +640,10 @@ int DrawGLScene(GLvoid)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
 	
-		//Draw background.
+		//Draw background. 
 	glLoadIdentity();
 	glTranslatef(0.0f,0.0f,-7.0f);
-	DrawBackground();
+	DrawBackground(handRotateKey);  //黄色空间表示双手可旋转模式.
 
 
 	if (statesIndicator[0] == -1 && statesIndicator[1] == -1 && !LineTrack.empty())
@@ -589,7 +664,7 @@ int DrawGLScene(GLvoid)
 	temp.x = ThreadSkeleton._3dPoint[11].x;
 	temp.y = ThreadSkeleton._3dPoint[11].y;
 	temp.z = ThreadSkeleton._3dPoint[11].z;
-	if (statesIndicator[0] == 1 && statesIndicator[1] != -1)    //暂时用左手控制画笔开关，这样比较稳定。
+	if (statesIndicator[0] == 1 && statesIndicator[1] != -1 && !handRotateKey)    //暂时用左手控制画笔开关，这样比较稳定。
 	{
 		LineTrack.push_back(temp);
 	}
@@ -608,14 +683,50 @@ int DrawGLScene(GLvoid)
 	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-7.0f);	
 	glColor3f(1.0f, 1.0f, 0.0f);
-	HandDisplay(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
-		zScale*ThreadSkeleton._3dPoint[11].z);
+	if (handRotateKey)
+	{
+		HandDisplay(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
+			zScale*ThreadSkeleton._3dPoint[11].z);
+	}
+	else
+	{
+		glPointSize(10.0f);
+		glBegin(GL_POINTS);
+		glVertex3f(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
+			zScale*ThreadSkeleton._3dPoint[11].z);
+		glEnd();
+	}
 
 	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-7.0f);	
 	glColor3f(1.0f, 1.0f, 0.0f);
 	HandDisplay_left(xScale*ThreadSkeleton._3dPoint[7].x, yScale*ThreadSkeleton._3dPoint[7].y,
 		zScale*ThreadSkeleton._3dPoint[7].z);
+
+		//Hand rotation mode decision.
+	glLoadIdentity();
+	glTranslatef(0.0f,0.0f,-7.0f);
+	if (xScale*ThreadSkeleton._2dPoint[7].x < 200)
+	{
+		handRotateCount++;
+	}
+	if (handRotateCount > handRotateDuration)
+	{
+		handRotateKey  = !handRotateKey;
+		handRotateCount = 0;
+	}
+
+		//Rotate the space by two hands with fist postures.
+	if (handRotateKey && statesIndicator[0] != -1 && statesIndicator[1] != -1)
+	{
+			//Calculate the rotation angles
+		rotateSpace(ThreadSkeleton._3dPoint[7].x, 
+			ThreadSkeleton._3dPoint[7].y,
+			ThreadSkeleton._3dPoint[7].z,
+			ThreadSkeleton._3dPoint[11].x,
+			ThreadSkeleton._3dPoint[11].y,
+			ThreadSkeleton._3dPoint[11].z);
+	}
 
 		//Draw the painting.
 	if (LineTrack.size()>0)
@@ -633,12 +744,19 @@ int DrawGLScene(GLvoid)
 		if (statesIndicator[0] == -1 && statesIndicator[1] == -1)
 		{
 			glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
-			glPointSize(25.0f);
-			glColor3f(0.0f,0.0f,1.0f);
-			glBegin(GL_POINTS);
-			glVertex3f(xScale*center_x,yScale*center_y,zScale*center_z);
-			glEnd();
+// 			glPointSize(25.0f);
+// 			glColor3f(0.0f,0.0f,1.0f);
+// 			glBegin(GL_POINTS);
+// 			glVertex3f(xScale*center_x,yScale*center_y,zScale*center_z);
+// 			glEnd();
 			glRotatef(Yrotate,0,1,0);
+		}
+		else if (handRotateKey && statesIndicator[0] != -1 && statesIndicator[1] != -1)
+		{
+			glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
+			glRotatef(handRotate_Y,0,1,0);
+			glRotatef(handRotate_Z,0,0,1);
+			glRotatef(handRotate_X,1,0,0);
 		}
 		else
 		{
@@ -1274,6 +1392,20 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 {
 	MSG		msg;									// Windows Message Structure
 	BOOL	done=FALSE;								// Bool Variable To Exit Loop
+	handRotateCount = 0;
+	handRotateKey = false;
+	handRotate_X = 0.0f;
+	handRotate_Y = 0.0f;
+	handRotate_Z = 0.0f;
+	firstRotate = 0;
+	preAngleZ = 0.0f;
+	preAngleY = 0.0f;
+	preAngleX = 0.0f;
+	rzAdd = 0.0f;
+	ryAdd = 0.0f;
+	rzAdd = 0.0f;
+// 	spaceRz = 0.0f;
+// 	spaceRy = 0.0f;
 
 	USHORT*   m_pFrameBits;
 	int i,j;
