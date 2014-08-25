@@ -12,6 +12,31 @@
 // 11: right:  statesIndicator[0]
 // 7: left:  statesIndicator[1]
 
+//#define RandDomDraw
+#define mathDraw
+
+
+//////////////////////////////////////////////////////////////////////////
+//mathDraw
+GLfloat baseRx;
+GLfloat baseRy;
+GLfloat baseRz;
+
+GLfloat baseTx;
+GLfloat baseTy;
+GLfloat baseTz;
+
+	//To record the line
+vector<CvPoint3D32f> startPoint;
+vector<CvPoint3D32f> endPoint;
+
+bool drawKey_math;
+
+
+
+
+//////////////////////////////////////////////////////////////////////////
+
 MsKinect m_pKinect;
 #define HandSize 64
 vector<double> HOG_palm_right;
@@ -37,8 +62,18 @@ GLfloat rxAdd;
 // GLfloat spaceRz;
 // GLfloat spaceRy;
 
+
+
 vector<int> hiddenState[2];
 int duration = 120;
+bool touchPaint;
+bool firtstTrans;
+GLfloat PreTranslate_X;
+GLfloat PreTranslate_Y;
+GLfloat PreTranslate_Z;
+GLfloat Translate_X;   //手动移动的位置
+GLfloat Translate_Y;
+GLfloat Translate_Z;
 
 HDC			hDC=NULL;		// Private GDI Device Context
 HGLRC		hRC=NULL;		// Permanent Rendering Context
@@ -579,6 +614,24 @@ void GetRotateCenter(GLfloat* x, GLfloat* y, GLfloat* z)
 
 }
 
+void GetRotateCenter_math(GLfloat* x, GLfloat* y, GLfloat* z)
+{
+	*x = 0.0f; 
+	*y = 0.0f;
+	*z = 0.0f;
+	for (int i=0; i<endPoint.size(); i++)
+	{
+		*x += startPoint[i].x + endPoint[i].x;
+		*y += startPoint[i].y + endPoint[i].y;
+		*z += startPoint[i].z + endPoint[i].z;
+	}
+
+	*x /= (2*endPoint.size() + 0.00001);
+	*y /= (2*endPoint.size() + 0.00001);
+	*z /= (2*endPoint.size() + 0.00001);
+
+}
+
 void rotateSpace(GLfloat lx,GLfloat ly,GLfloat lz,GLfloat rx,GLfloat ry,GLfloat rz)
 {
 	if (firstRotate==0)
@@ -622,21 +675,24 @@ void rotateSpace(GLfloat lx,GLfloat ly,GLfloat lz,GLfloat rx,GLfloat ry,GLfloat 
 			preAngleX=90;
 		}
 	}
-	handRotate_Z+=10*rzAdd;
-	handRotate_Y-=10*ryAdd; 
-	handRotate_X-=10*ryAdd;
+	handRotate_Z-=10*rzAdd;
+	handRotate_Y+=10*ryAdd; 
+	//handRotate_X-=10*ryAdd;
 }
 
 int DrawGLScene(GLvoid)									
 {
-	GLfloat center_x, center_y, center_z;
+
+
+		//The coordinate of the center of the current hand positions.
+	GLfloat center_x, center_y, center_z;   
 	center_x = 0.0f;
 	center_y = 0.0f;
 	center_z = 0.0f;
-
-	float xScale = 2.5;
-	float yScale = 2.5;
-	float zScale = 3;
+		//The scale for x,y and z
+	float xScale = 2.5;  //2.5
+	float yScale = 2.5;   //2.5
+	float zScale = 3;    //3
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
 	
@@ -645,32 +701,79 @@ int DrawGLScene(GLvoid)
 	glTranslatef(0.0f,0.0f,-7.0f);
 	DrawBackground(handRotateKey);  //黄色空间表示双手可旋转模式.
 
-
-	if (statesIndicator[0] == -1 && statesIndicator[1] == -1 && !LineTrack.empty())
+		//Rotate the painting.
+		//If the hand cross each other under the threshold line, the paint will be erased.
+	if (statesIndicator[0] == -1 && statesIndicator[1] == -1)
 	{
-		if (ThreadSkeleton._3dPoint[11].x < ThreadSkeleton._3dPoint[7].x)
+#ifdef RandDomDraw
+		if (!LineTrack.empty())
+#endif
+
+#ifdef mathDraw
+		if (!endPoint.empty())
+#endif
 		{
-			LineTrack.clear();    //This function is really simple and cool. Clear the painting.
-			center_x = 0.0f;
-			center_y = 0.0f;
-			center_z = 0.0f;
-			Yrotate = 0.0f;
+			if (ThreadSkeleton._3dPoint[11].x < ThreadSkeleton._3dPoint[7].x)
+			{
+#ifdef RandDomDraw
+
+				LineTrack.clear();    //This function is really simple and cool. Clear the painting.
+#endif
+
+#ifdef mathDraw
+				startPoint.clear();
+				endPoint.clear();
+
+#endif
+				center_x = 0.0f;
+				center_y = 0.0f;
+				center_z = 0.0f;
+				Yrotate = 0.0f;
+			}
+			Yrotate += 0.6f;
 		}
-		Yrotate += 0.6f;
+		
 	}
 
-
+		//Store the current painting.
 	CvPoint3D32f temp;
 	temp.x = ThreadSkeleton._3dPoint[11].x;
 	temp.y = ThreadSkeleton._3dPoint[11].y;
 	temp.z = ThreadSkeleton._3dPoint[11].z;
 	if (statesIndicator[0] == 1 && statesIndicator[1] != -1 && !handRotateKey)    //暂时用左手控制画笔开关，这样比较稳定。
 	{
+#ifdef RandDomDraw
 		LineTrack.push_back(temp);
+#endif
+
+#ifdef mathDraw
+		if (startPoint.size() == endPoint.size())
+		{
+			startPoint.push_back(temp);
+		}
+
+#endif
 	}
+
+#ifdef mathDraw
+	if (statesIndicator[0] == 0 && statesIndicator[1] != -1 && !handRotateKey)
+	{
+		if (startPoint.size()>endPoint.size())
+		{
+			endPoint.push_back(temp);
+		}
+	}
+#endif
 	
 		//Get the center of the drawing.
+#ifdef RandDomDraw
 	GetRotateCenter(&center_x, &center_y, &center_z);
+#endif
+
+#ifdef mathDraw
+	GetRotateCenter_math(&center_x, &center_y, &center_z);
+#endif
+		//Show some information
 	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-3.0f);
 	glColor3f(1.0f, 0.0f, 0.0f);
@@ -679,16 +782,16 @@ int DrawGLScene(GLvoid)
 	sprintf(tempbuf, "%f, %f, %f", xScale*center_x, yScale*center_y, zScale*center_z);
 	drawString(tempbuf);
 
-		//Display the hand
+		//Display the right hand
 	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-7.0f);	
 	glColor3f(1.0f, 1.0f, 0.0f);
-	if (handRotateKey)
+	if (handRotateKey || touchPaint)
 	{
 		HandDisplay(xScale*ThreadSkeleton._3dPoint[11].x, yScale*ThreadSkeleton._3dPoint[11].y,
 			zScale*ThreadSkeleton._3dPoint[11].z);
 	}
-	else
+	else //The right hand become a dot when painting.
 	{
 		glPointSize(10.0f);
 		glBegin(GL_POINTS);
@@ -696,14 +799,15 @@ int DrawGLScene(GLvoid)
 			zScale*ThreadSkeleton._3dPoint[11].z);
 		glEnd();
 	}
-
+		//Display the left hand
 	glLoadIdentity();									
 	glTranslatef(0.0f,0.0f,-7.0f);	
 	glColor3f(1.0f, 1.0f, 0.0f);
 	HandDisplay_left(xScale*ThreadSkeleton._3dPoint[7].x, yScale*ThreadSkeleton._3dPoint[7].y,
 		zScale*ThreadSkeleton._3dPoint[7].z);
 
-		//Hand rotation mode decision.
+
+		//Mode change for rotation by human hands.
 	glLoadIdentity();
 	glTranslatef(0.0f,0.0f,-7.0f);
 	if (xScale*ThreadSkeleton._2dPoint[7].x < 200)
@@ -716,7 +820,7 @@ int DrawGLScene(GLvoid)
 		handRotateCount = 0;
 	}
 
-		//Rotate the space by two hands with fist postures.
+		//Rotate the space by two hands.
 	if (handRotateKey && statesIndicator[0] != -1 && statesIndicator[1] != -1)
 	{
 			//Calculate the rotation angles
@@ -728,6 +832,72 @@ int DrawGLScene(GLvoid)
 			ThreadSkeleton._3dPoint[11].z);
 	}
 
+
+#ifdef mathDraw
+	glLoadIdentity();								
+	glTranslatef(0.0f,0.0f,-7.0f);
+	if (statesIndicator[0] == -1 && statesIndicator[1] == -1)
+	{
+		glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
+		glRotatef(Yrotate,0,1,0);
+	}
+	else if (handRotateKey && statesIndicator[0] != -1 && statesIndicator[1] != -1)
+	{
+		glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
+		glRotatef(handRotate_Y,0,1,0);
+		glRotatef(handRotate_Z,0,0,1);
+		glRotatef(handRotate_X,1,0,0);
+	}
+	else
+	{
+		center_x = 0.0f;
+		center_y = 0.0f;
+		center_z = 0.0f;
+	}
+
+	if (startPoint.size()>0 && endPoint.size()>0)
+	{
+		glLineWidth(8);
+		glBegin(GL_LINES);									
+		glColor3f(1.0f,0.0f,0.0f);
+		for (int i=1; i<endPoint.size(); i++)
+		{
+			glVertex3f(xScale*startPoint[i].x-xScale*center_x, 
+				yScale*startPoint[i].y-yScale*center_y, 
+				zScale*startPoint[i].z-zScale*center_z);
+			glVertex3f(xScale*endPoint[i].x-xScale*center_x, 
+				yScale*endPoint[i].y-yScale*center_y, 
+				zScale*endPoint[i].z-zScale*center_z);
+// 			glVertex3f(xScale*startPoint[i].x, 
+// 				yScale*startPoint[i].y, 
+// 				zScale*startPoint[i].z);
+// 			glVertex3f(xScale*endPoint[i].x, 
+// 				yScale*endPoint[i].y, 
+// 				zScale*endPoint[i].z);
+		}
+		if (startPoint.size()>endPoint.size())
+		{
+			int startIndex = startPoint.size()-1;
+			glVertex3f(xScale*startPoint[startIndex].x-xScale*center_x, 
+				yScale*startPoint[startIndex].y-yScale*center_y, 
+				zScale*startPoint[startIndex].z-zScale*center_z);
+			glVertex3f(xScale*temp.x-xScale*center_x, 
+				yScale*temp.y-yScale*center_y, 
+				zScale*temp.z-zScale*center_z);
+// 			glVertex3f(xScale*startPoint[startIndex].x, 
+// 				yScale*startPoint[startIndex].y, 
+// 				zScale*startPoint[startIndex].z);
+// 			glVertex3f(xScale*temp.x, 
+// 				yScale*temp.y, 
+// 				zScale*temp.z);
+		}
+		glEnd();
+
+		
+	}
+#endif
+
+#ifdef RandDomDraw
 		//Draw the painting.
 	if (LineTrack.size()>0)
 	{
@@ -744,11 +914,6 @@ int DrawGLScene(GLvoid)
 		if (statesIndicator[0] == -1 && statesIndicator[1] == -1)
 		{
 			glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
-// 			glPointSize(25.0f);
-// 			glColor3f(0.0f,0.0f,1.0f);
-// 			glBegin(GL_POINTS);
-// 			glVertex3f(xScale*center_x,yScale*center_y,zScale*center_z);
-// 			glEnd();
 			glRotatef(Yrotate,0,1,0);
 		}
 		else if (handRotateKey && statesIndicator[0] != -1 && statesIndicator[1] != -1)
@@ -764,20 +929,74 @@ int DrawGLScene(GLvoid)
 			center_y = 0.0f;
 			center_z = 0.0f;
 		}
+
+		if (statesIndicator[0] == -1 && statesIndicator[1] != -1)
+		{
+			GLfloat disTemp = 0.0;
+			disTemp = abs(xScale*ThreadSkeleton._3dPoint[11].x - xScale*center_x)+
+				abs(yScale*ThreadSkeleton._3dPoint[11].y - yScale*center_y) +
+				abs(zScale*ThreadSkeleton._3dPoint[11].z - zScale*center_z);
+
+
+			glColor3f(1.0f, 1.0f, 1.0f);
+			glRasterPos2f(0.0f, 0.0f);
+			char tempbuf_[45];
+			sprintf(tempbuf_, "%f", disTemp);
+			drawString(tempbuf_);
+
+			if (disTemp < 4)
+			{
+				touchPaint = true;
+			}
+			else
+			{
+				touchPaint = false;
+			}
+
+			if (touchPaint && statesIndicator[1] == 0)
+			{
+				if (firtstTrans)
+				{
+					PreTranslate_X = xScale*ThreadSkeleton._3dPoint[11].x;
+					PreTranslate_Y = yScale*ThreadSkeleton._3dPoint[11].y;
+					PreTranslate_Z = zScale*ThreadSkeleton._3dPoint[11].z;
+					Translate_X = 0.0f;
+					Translate_Y = 0.0f;
+					Translate_Z = 0.0f;
+					firtstTrans = false;
+				}
+				else
+				{
+					/*Translate_X = xScale*ThreadSkeleton._3dPoint[11].x - */
+					//类似旋转的增量式移动
+					//最好将painting的坐标进行一次统一
+				}
+				
+			}
+		}
+
+
 		glPointSize(5.0f);
-		glBegin(GL_POINTS);								
-		glColor3f(1.0f,0.0f,0.0f);
+		glBegin(GL_POINTS);	
+		if (!touchPaint)
+		{
+			glColor3f(1.0f,0.0f,0.0f);
+		}
+		else
+		{
+			glColor3f(0.0f,1.0f,1.0f);
+		}
 		for (int i=0; i<LineTrack.size(); i++)
 		{
-			glVertex3f(xScale*LineTrack[i].x-xScale*center_x, 
-				yScale*LineTrack[i].y-yScale*center_y, 
-				zScale*LineTrack[i].z-zScale*center_z);
+			glVertex3f(xScale*LineTrack[i].x-xScale*center_x /*+ Translate_X*/, 
+				yScale*LineTrack[i].y-yScale*center_y /*+ Translate_Y*/, 
+				zScale*LineTrack[i].z-zScale*center_z /*+ Translate_Z*/);
 		}
 		glEnd();
 
 		glLineWidth(8);
 		glBegin(GL_LINES);									
-		glColor3f(1.0f,0.0f,0.0f);
+		//glColor3f(1.0f,0.0f,0.0f);
 		for (int i=0; i<LineTrack.size()-1; i++)
 		{
 			glVertex3f(xScale*LineTrack[i].x-xScale*center_x, 
@@ -789,7 +1008,7 @@ int DrawGLScene(GLvoid)
 		}
 		glEnd();
 	}
-
+#endif
 	return TRUE;	
 }
 
@@ -1141,7 +1360,9 @@ void HandPostureRecognition(IplImage* depthImage, IplImage* rgbImage, SLR_ST_Ske
 	float aveDepthHead = 0;
 	CvPoint headPosition;
 	headPosition.x = skeleton._2dPoint[3].x>10?skeleton._2dPoint[3].x:10;
+	//headPosition.x = headPosition.x<620?headPosition.x:620;
 	headPosition.y = skeleton._2dPoint[3].y>10?skeleton._2dPoint[3].y:10;
+	//headPosition.y = headPosition.y<460? headPosition.y:460;
 	cvDrawCircle(depthImage,headPosition,20,cvScalar(255,0,0),2,8,0);
 	for (int i=headPosition.x-10; i<headPosition.x+10; i++)
 	{
@@ -1165,7 +1386,8 @@ void HandPostureRecognition(IplImage* depthImage, IplImage* rgbImage, SLR_ST_Ske
 		}
 	}
 
-	CvFont font;
+		//Text of hand position
+ 	CvFont font;
 	double hscale = 1.0;
 	double vscale = 1.0;
 	int linewidth = 2;
@@ -1190,11 +1412,11 @@ void HandPostureRecognition(IplImage* depthImage, IplImage* rgbImage, SLR_ST_Ske
 	int handWidth = 30;
 		//Right hand bounding box
 	CvPoint p1;
-	p1.x = skeleton._2dPoint[11].x-handWidth;
-	p1.y = skeleton._2dPoint[11].y-handHeight;
+	p1.x = (skeleton._2dPoint[11].x-handWidth)>0?(skeleton._2dPoint[11].x-handWidth):0;
+	p1.y = (skeleton._2dPoint[11].y-handHeight)>0?(skeleton._2dPoint[11].y-handHeight):0;
 	CvPoint p2;
-	p2.x = skeleton._2dPoint[11].x+handWidth;
-	p2.y = skeleton._2dPoint[11].y+handHeight;
+	p2.x = (skeleton._2dPoint[11].x+handWidth)<640?(skeleton._2dPoint[11].x+handWidth):640;
+	p2.y = (skeleton._2dPoint[11].y+handHeight)<480?(skeleton._2dPoint[11].y+handHeight):480;
 	cvRectangle(depthImage,p1,p2,cvScalar(255,255,255),2,8,0);
 	CvRect RightHandRoi;
 	RightHandRoi.x = p1.x;
@@ -1263,11 +1485,11 @@ void HandPostureRecognition(IplImage* depthImage, IplImage* rgbImage, SLR_ST_Ske
 
 		//Left hand bounding box
 	CvPoint p3;
-	p3.x = skeleton._2dPoint[7].x-handWidth;
-	p3.y = skeleton._2dPoint[7].y-handHeight;
+	p3.x = (skeleton._2dPoint[7].x-handWidth)>0?(skeleton._2dPoint[7].x-handWidth):0;
+	p3.y = (skeleton._2dPoint[7].y-handHeight)>0?(skeleton._2dPoint[7].y-handHeight):0;
 	CvPoint p4;
-	p4.x = skeleton._2dPoint[7].x+handWidth;
-	p4.y = skeleton._2dPoint[7].y+handHeight;
+	p4.x = (skeleton._2dPoint[7].x+handWidth)<640?(skeleton._2dPoint[7].x+handWidth):640;
+	p4.y = (skeleton._2dPoint[7].y+handHeight)<480?(skeleton._2dPoint[7].y+handHeight):480;
 	cvRectangle(depthImage,p3,p4,cvScalar(255,255,255),2,8,0);
 	CvRect LeftHandRoi;
 	LeftHandRoi.x = p3.x;
@@ -1336,6 +1558,16 @@ void HandPostureRecognition(IplImage* depthImage, IplImage* rgbImage, SLR_ST_Ske
 
 	cvReleaseImage(&leftHandImage);
 	cvReleaseImage(&rightHandImage);
+
+
+		//
+	if (p1.x<5 && p1.y<5 && p2.x<40 && p2.y<40 &&p3.x<5 && p3.y<5 &&p4.x<40 && p4.y<40)
+	{
+		for (int i=0; i<4; i++)
+		{
+			statesIndicator[i] = -1;
+		}
+	}
 
 }
 
@@ -1406,6 +1638,27 @@ int WINAPI WinMain(	HINSTANCE	hInstance,			// Instance
 	rzAdd = 0.0f;
 // 	spaceRz = 0.0f;
 // 	spaceRy = 0.0f;
+	touchPaint = false;
+	Translate_X = 0.0f;
+	Translate_Y = 0.0f;
+	Translate_Z = 0.0f;
+	firtstTrans = true;
+	PreTranslate_X = 0.0f;
+	PreTranslate_Y = 0.0f;
+	PreTranslate_Z = 0.0f;
+
+	//////////////////////////////////////////////////////////////////////////
+	//mathDraw
+	baseRx = 0.0f;
+	baseRy = 0.0f;
+	baseRz = 0.0f;
+
+	baseTx = 0.0f;
+	baseTy = 0.0f;
+	baseTz = 0.0f;
+
+	drawKey_math = false;
+	//////////////////////////////////////////////////////////////////////////
 
 	USHORT*   m_pFrameBits;
 	int i,j;
