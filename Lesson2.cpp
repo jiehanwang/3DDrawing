@@ -680,6 +680,49 @@ void rotateSpace(GLfloat lx,GLfloat ly,GLfloat lz,GLfloat rx,GLfloat ry,GLfloat 
 	//handRotate_X-=10*ryAdd;
 }
 
+
+int nearPoint(CvPoint3D32f current)
+{
+	float xScale = 2.5;  //2.5
+	float yScale = 2.5;   //2.5
+	float zScale = 3;    //3
+
+	float nearestDis = 10000;
+	int nearestID = -1;
+	for (int i=1; i<startPoint.size(); i++)
+	{
+		float disTemp = abs(xScale*startPoint[i].x - xScale*current.x)+
+			abs(yScale*startPoint[i].y - yScale*current.y) +
+			abs(zScale*startPoint[i].z - zScale*current.z);
+		if (disTemp < nearestDis)
+		{
+			nearestDis = disTemp;
+			nearestID = 2*i;
+		}
+	}
+
+	for (int j=1; j<endPoint.size(); j++)
+	{
+		float disTemp = abs(xScale*endPoint[j].x - xScale*current.x)+
+			abs(yScale*endPoint[j].y - yScale*current.y) +
+			abs(zScale*endPoint[j].z - zScale*current.z);
+		if (disTemp < nearestDis)
+		{
+			nearestDis = disTemp;
+			nearestID = 2*j+1;
+		}
+	}
+
+	if (nearestDis < 0.5)
+	{
+		return nearestID;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
 int DrawGLScene(GLvoid)									
 {
 
@@ -690,6 +733,7 @@ int DrawGLScene(GLvoid)
 	center_y = 0.0f;
 	center_z = 0.0f;
 		//The scale for x,y and z
+		//Function "nearPoint" should has the same values. 
 	float xScale = 2.5;  //2.5
 	float yScale = 2.5;   //2.5
 	float zScale = 3;    //3
@@ -740,6 +784,22 @@ int DrawGLScene(GLvoid)
 	temp.x = ThreadSkeleton._3dPoint[11].x;
 	temp.y = ThreadSkeleton._3dPoint[11].y;
 	temp.z = ThreadSkeleton._3dPoint[11].z;
+	int nearestID = nearPoint(temp);
+	int trueID = -1;
+	bool startOrEnd;  //1: start; 0: end.
+	if (nearestID > -1)
+	{
+		if (nearestID%2 == 0)
+		{
+			trueID = nearestID/2;
+			startOrEnd = true;
+		}
+		else
+		{
+			trueID = (nearestID-1)/2;
+			startOrEnd = false;
+		}
+	}
 	if (statesIndicator[0] == 1 && statesIndicator[1] != -1 && !handRotateKey)    //暂时用左手控制画笔开关，这样比较稳定。
 	{
 #ifdef RandDomDraw
@@ -749,6 +809,25 @@ int DrawGLScene(GLvoid)
 #ifdef mathDraw
 		if (startPoint.size() == endPoint.size())
 		{
+			if (nearestID > -1)
+			{
+				if (nearestID%2 == 0)
+				{
+					trueID = nearestID/2;
+					startOrEnd = true;
+					temp.x = startPoint[trueID].x;
+					temp.y = startPoint[trueID].y;
+					temp.z = startPoint[trueID].z;
+				}
+				else
+				{
+					trueID = (nearestID-1)/2;
+					startOrEnd = false;
+					temp.x = endPoint[trueID].x;
+					temp.y = endPoint[trueID].y;
+					temp.z = endPoint[trueID].z;
+				}
+			}
 			startPoint.push_back(temp);
 		}
 
@@ -760,6 +839,25 @@ int DrawGLScene(GLvoid)
 	{
 		if (startPoint.size()>endPoint.size())
 		{
+			if (nearestID > -1)
+			{
+				if (nearestID%2 == 0)
+				{
+					trueID = nearestID/2;
+					startOrEnd = true;
+					temp.x = startPoint[trueID].x;
+					temp.y = startPoint[trueID].y;
+					temp.z = startPoint[trueID].z;
+				}
+				else
+				{
+					trueID = (nearestID-1)/2;
+					startOrEnd = false;
+					temp.x = endPoint[trueID].x;
+					temp.y = endPoint[trueID].y;
+					temp.z = endPoint[trueID].z;
+				}
+			}
 			endPoint.push_back(temp);
 		}
 	}
@@ -834,29 +932,31 @@ int DrawGLScene(GLvoid)
 
 
 #ifdef mathDraw
-	glLoadIdentity();								
-	glTranslatef(0.0f,0.0f,-7.0f);
-	if (statesIndicator[0] == -1 && statesIndicator[1] == -1)
-	{
-		glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
-		glRotatef(Yrotate,0,1,0);
-	}
-	else if (handRotateKey && statesIndicator[0] != -1 && statesIndicator[1] != -1)
-	{
-		glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
-		glRotatef(handRotate_Y,0,1,0);
-		glRotatef(handRotate_Z,0,0,1);
-		glRotatef(handRotate_X,1,0,0);
-	}
-	else
-	{
-		center_x = 0.0f;
-		center_y = 0.0f;
-		center_z = 0.0f;
-	}
-
+	
 	if (startPoint.size()>0 && endPoint.size()>0)
 	{
+		glLoadIdentity();								
+		glTranslatef(0.0f,0.0f,-7.0f);
+		if (statesIndicator[0] == -1 && statesIndicator[1] == -1)
+		{
+			glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
+			glRotatef(Yrotate,0,1,0);
+		}
+		else if (handRotateKey && statesIndicator[0] != -1 && statesIndicator[1] != -1)
+		{
+			glTranslatef(xScale*center_x,yScale*center_y,zScale*center_z);
+			glRotatef(handRotate_Y,0,1,0);
+			glRotatef(handRotate_Z,0,0,1);
+			glRotatef(handRotate_X,1,0,0);
+		}
+		else
+		{
+			center_x = 0.0f;
+			center_y = 0.0f;
+			center_z = 0.0f;
+		}
+
+
 		glLineWidth(8);
 		glBegin(GL_LINES);									
 		glColor3f(1.0f,0.0f,0.0f);
@@ -868,12 +968,7 @@ int DrawGLScene(GLvoid)
 			glVertex3f(xScale*endPoint[i].x-xScale*center_x, 
 				yScale*endPoint[i].y-yScale*center_y, 
 				zScale*endPoint[i].z-zScale*center_z);
-// 			glVertex3f(xScale*startPoint[i].x, 
-// 				yScale*startPoint[i].y, 
-// 				zScale*startPoint[i].z);
-// 			glVertex3f(xScale*endPoint[i].x, 
-// 				yScale*endPoint[i].y, 
-// 				zScale*endPoint[i].z);
+
 		}
 		if (startPoint.size()>endPoint.size())
 		{
@@ -884,14 +979,27 @@ int DrawGLScene(GLvoid)
 			glVertex3f(xScale*temp.x-xScale*center_x, 
 				yScale*temp.y-yScale*center_y, 
 				zScale*temp.z-zScale*center_z);
-// 			glVertex3f(xScale*startPoint[startIndex].x, 
-// 				yScale*startPoint[startIndex].y, 
-// 				zScale*startPoint[startIndex].z);
-// 			glVertex3f(xScale*temp.x, 
-// 				yScale*temp.y, 
-// 				zScale*temp.z);
+
 		}
 		glEnd();
+
+		if (trueID > -1)
+		{
+			glPointSize(15.0f);
+			glBegin(GL_POINTS);
+			glColor3f(0,1,1);
+			glVertex3f(0.0f, 0.0f, 0.0f);
+			if (startOrEnd)
+			{
+				glVertex3f(xScale*startPoint[trueID].x, yScale*startPoint[trueID].y, zScale*startPoint[trueID].z);
+			}
+			else
+			{
+				glVertex3f(xScale*endPoint[trueID].x, yScale*endPoint[trueID].y, zScale*endPoint[trueID].z);
+			}
+			glEnd();
+			
+		}
 
 		
 	}
@@ -955,6 +1063,14 @@ int DrawGLScene(GLvoid)
 
 			if (touchPaint && statesIndicator[1] == 0)
 			{
+// 				glTranslatef(xScale*ThreadSkeleton._3dPoint[11].x,
+// 					yScale*ThreadSkeleton._3dPoint[11].y,
+// 					zScale*ThreadSkeleton._3dPoint[11].z);
+
+				Translate_X = ThreadSkeleton._3dPoint[11].x;
+				Translate_Y = ThreadSkeleton._3dPoint[11].y;
+				Translate_Z = ThreadSkeleton._3dPoint[11].z;
+
 				if (firtstTrans)
 				{
 					PreTranslate_X = xScale*ThreadSkeleton._3dPoint[11].x;
@@ -988,9 +1104,9 @@ int DrawGLScene(GLvoid)
 		}
 		for (int i=0; i<LineTrack.size(); i++)
 		{
-			glVertex3f(xScale*LineTrack[i].x-xScale*center_x /*+ Translate_X*/, 
-				yScale*LineTrack[i].y-yScale*center_y /*+ Translate_Y*/, 
-				zScale*LineTrack[i].z-zScale*center_z /*+ Translate_Z*/);
+			glVertex3f(xScale*LineTrack[i].x-xScale*center_x + Translate_X, 
+				yScale*LineTrack[i].y-yScale*center_y + Translate_Y, 
+				zScale*LineTrack[i].z-zScale*center_z + Translate_Z);
 		}
 		glEnd();
 
@@ -999,12 +1115,12 @@ int DrawGLScene(GLvoid)
 		//glColor3f(1.0f,0.0f,0.0f);
 		for (int i=0; i<LineTrack.size()-1; i++)
 		{
-			glVertex3f(xScale*LineTrack[i].x-xScale*center_x, 
-				yScale*LineTrack[i].y-yScale*center_y, 
-				zScale*LineTrack[i].z-zScale*center_z);
-			glVertex3f(xScale*LineTrack[i+1].x-xScale*center_x, 
-				yScale*LineTrack[i+1].y-yScale*center_y, 
-				zScale*LineTrack[i+1].z-zScale*center_z);
+			glVertex3f(xScale*LineTrack[i].x-xScale*center_x+ Translate_X, 
+				yScale*LineTrack[i].y-yScale*center_y+ Translate_Y, 
+				zScale*LineTrack[i].z-zScale*center_z+ Translate_Z);
+			glVertex3f(xScale*LineTrack[i+1].x-xScale*center_x+ Translate_X, 
+				yScale*LineTrack[i+1].y-yScale*center_y+ Translate_Y, 
+				zScale*LineTrack[i+1].z-zScale*center_z+ Translate_Z);
 		}
 		glEnd();
 	}
